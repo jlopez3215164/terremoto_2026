@@ -26,7 +26,7 @@ router.post('/register', async (req, res) => {
     const password_hash = await bcrypt.hash(password, salt);
 
     // Insertar usuario
-    const userRol = rol && ['admin', 'voluntario', 'donante'].includes(rol) ? rol : 'donante';
+    const userRol = rol && ['donante', 'afectado'].includes(rol) ? rol : 'donante';
     const [result] = await pool.query(
       'INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)',
       [nombre, email, password_hash, userRol]

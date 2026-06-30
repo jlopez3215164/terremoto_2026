@@ -117,9 +117,8 @@ export default function Register() {
                 onChange={e => setFormData({...formData, rol: e.target.value})}
                 isSearchable={false}
                 options={[
-                  { value: 'donante', label: '👤 Donante (Persona natural)' },
-                  { value: 'voluntario', label: '⛑️ Voluntario / Rescatista' },
-                  { value: 'admin', label: '🛡️ Administrador' }
+                  { value: 'donante', label: '👤 Donante (Quiero ayudar)' },
+                  { value: 'afectado', label: '🆘 Afectado (Necesito ayuda / Registrar centro)' }
                 ]}
               />
             </div>

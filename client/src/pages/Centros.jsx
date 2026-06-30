@@ -534,7 +534,7 @@ function AdminCentroModal({ centro, onClose, onSuccess }) {
   );
 }
 
-function CentroCard({ centro, onDonate, isAdmin, onEdit, onDelete }) {
+function CentroCard({ centro, onDonate, isAdmin, canManage, currentUser, onEdit, onDelete }) {
   const [expanded, setExpanded] = useState(false);
   
   const needItems = parseNeeds(centro.tipos_ayuda);
@@ -574,7 +574,7 @@ function CentroCard({ centro, onDonate, isAdmin, onEdit, onDelete }) {
             {needItems.length} insumos
           </span>
         )}
-        {isAdmin && (
+        {(isAdmin || (canManage && currentUser?.id === centro.usuario_id)) && (
           <div style={{ display: 'flex', gap: '6px' }}>
             <button onClick={() => onEdit(centro)} style={{
               background: 'rgba(59, 130, 246, 0.2)', border: '1px solid rgba(59,130,246,0.3)', color: '#60a5fa',
@@ -680,6 +680,7 @@ export default function Centros() {
   
   const { user } = useAuth();
   const isAdmin = user && user.rol === 'admin';
+  const canManage = user && (user.rol === 'admin' || user.rol === 'afectado');
 
   const fetchCentros = async () => {
     setLoading(true);
@@ -746,7 +747,7 @@ export default function Centros() {
               Encuentra centros activos, revisa lo que necesitan y dona directamente. Tu ayuda salva vidas.
             </p>
           </div>
-          {isAdmin && (
+          {canManage && (
             <button onClick={() => { setCentroToEdit(null); setAdminCentroModal(true); }} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Plus size={18} /> Añadir Centro
             </button>
@@ -832,7 +833,9 @@ export default function Centros() {
                 key={centro.id} 
                 centro={centro} 
                 onDonate={setDonatingTo} 
-                isAdmin={isAdmin} 
+                isAdmin={isAdmin}
+                canManage={canManage}
+                currentUser={user}
                 onEdit={c => { setCentroToEdit(c); setAdminCentroModal(true); }}
                 onDelete={handleDeleteCentro}
               />

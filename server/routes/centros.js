@@ -77,6 +77,11 @@ router.get('/mis-centros', authMiddleware, async (req, res) => {
 // Crear centro de donación
 router.post('/', authMiddleware, upload.single('logo'), async (req, res) => {
   try {
+    // Solo afectados y admins pueden crear centros
+    if (req.user.rol === 'donante') {
+      return res.status(403).json({ error: 'Los donantes no pueden registrar centros. Cambia tu tipo de cuenta a "Afectado" para hacerlo.' });
+    }
+
     const { 
       nombre, direccion, zona_id, latitud, longitud, 
       contacto, telefono, descripcion, tipos_ayuda 
@@ -122,8 +127,13 @@ router.put('/:id', authMiddleware, upload.single('logo'), async (req, res) => {
       contacto, telefono, descripcion, tipos_ayuda 
     } = req.body;
 
-    if (req.user.rol !== 'admin') {
-      return res.status(403).json({ error: 'No autorizado. Se requiere rol de admin' });
+    // Verificar que sea admin o dueño del centro
+    const [centroCheck] = await pool.query('SELECT usuario_id FROM centros_donacion WHERE id = ?', [id]);
+    if (centroCheck.length === 0) {
+      return res.status(404).json({ error: 'Centro no encontrado' });
+    }
+    if (req.user.rol !== 'admin' && centroCheck[0].usuario_id !== req.user.id) {
+      return res.status(403).json({ error: 'Solo puedes editar los centros que tú registraste' });
     }
 
     if (!nombre || !direccion) {
@@ -167,8 +177,13 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (req.user.rol !== 'admin') {
-      return res.status(403).json({ error: 'No autorizado. Se requiere rol de admin' });
+    // Verificar que sea admin o dueño del centro
+    const [centroCheck] = await pool.query('SELECT usuario_id FROM centros_donacion WHERE id = ?', [id]);
+    if (centroCheck.length === 0) {
+      return res.status(404).json({ error: 'Centro no encontrado' });
+    }
+    if (req.user.rol !== 'admin' && centroCheck[0].usuario_id !== req.user.id) {
+      return res.status(403).json({ error: 'Solo puedes eliminar los centros que tú registraste' });
     }
 
     const [result] = await pool.query(
