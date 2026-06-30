@@ -2,65 +2,83 @@ import { useState, useEffect, useRef } from 'react';
 import { fetchWithAuth, API_URL } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import ZonaFilter from '../components/ZonaFilter';
-import CustomSelect from '../components/CustomSelect';
-import { AlertTriangle, UserCheck, Shield, MapPin, Calendar, User, Search, Image as ImageIcon, X } from 'lucide-react';
+import { 
+  AlertTriangle, UserCheck, Shield, MapPin, Calendar, User, Search, 
+  Image as ImageIcon, X, Phone, Heart, Building2, Plus, CheckCircle2, Send
+} from 'lucide-react';
 
 const BASE_URL = API_URL.replace('/api', '');
 
-export default function Desaparecidos() {
-  const [desaparecidos, setDesaparecidos] = useState([]);
-  const [zonaId, setZonaId] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+/* ─── Stat Card ─── */
+function StatCard({ value, label, color, icon: Icon }) {
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,0.03)', borderRadius: '14px',
+      padding: '1.25rem', border: '1px solid rgba(255,255,255,0.06)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
+      flex: 1, minWidth: '120px'
+    }}>
+      {Icon && <Icon size={20} style={{ color, opacity: 0.8 }} />}
+      <span style={{ fontSize: '2rem', fontWeight: '800', color, lineHeight: 1 }}>{value}</span>
+      <span style={{ fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center', lineHeight: 1.3 }}>{label}</span>
+    </div>
+  );
+}
+
+/* ─── Filter Chip ─── */
+function Chip({ active, color, label, dot, onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      background: active ? `${color}18` : 'rgba(255,255,255,0.04)',
+      border: `1px solid ${active ? `${color}50` : 'rgba(255,255,255,0.08)'}`,
+      color: active ? color : '#94a3b8',
+      padding: '6px 14px', borderRadius: '20px', cursor: 'pointer',
+      fontSize: '0.8rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px',
+      transition: 'all 0.2s'
+    }}>
+      {dot && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color }} />}
+      {label}
+    </button>
+  );
+}
+
+/* ─── Status Badge ─── */
+function StatusBadge({ estado, rescatado }) {
+  const map = {
+    desaparecido: { bg: 'rgba(239,68,68,0.2)', color: '#f87171', border: 'rgba(239,68,68,0.3)', icon: AlertTriangle, text: 'Sin contacto' },
+    encontrado_vivo: { bg: 'rgba(34,197,94,0.2)', color: '#4ade80', border: 'rgba(34,197,94,0.3)', icon: UserCheck, text: 'Localizado' },
+    en_hospital: { bg: 'rgba(56,189,248,0.2)', color: '#38bdf8', border: 'rgba(56,189,248,0.3)', icon: Building2, text: 'En hospital' },
+    en_centro: { bg: 'rgba(168,85,247,0.2)', color: '#c084fc', border: 'rgba(168,85,247,0.3)', icon: Shield, text: 'En centro' },
+    encontrado_fallecido: { bg: 'rgba(100,116,139,0.2)', color: '#94a3b8', border: 'rgba(100,116,139,0.3)', icon: X, text: 'Fallecido' },
+  };
+  const s = map[estado] || map.desaparecido;
+  const Icon = s.icon;
+  return (
+    <span style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}`, padding: '4px 10px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+      <Icon size={13} /> {s.text}
+    </span>
+  );
+}
+
+/* ─── Report Form (Public) ─── */
+function ReportModal({ onClose, onSuccess }) {
   const [formData, setFormData] = useState({
-    nombre_completo: '', edad: '', genero: 'Otro', descripcion_fisica: '',
-    ultima_ubicacion: '', zona_id: '', contacto_familiar: '', telefono_contacto: ''
+    nombre_completo: '', edad: '', genero: 'otro', descripcion_fisica: '',
+    ultima_ubicacion: '', contacto_familiar: '', telefono_contacto: '',
+    reportado_por: '', telefono_reportante: ''
   });
   const [fotoFile, setFotoFile] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const fileInputRef = useRef(null);
+  const [success, setSuccess] = useState(false);
+  const fileRef = useRef(null);
 
-  const { user } = useAuth();
-
-  useEffect(() => {
-    fetchDesaparecidos();
-  }, [zonaId]);
-
-  const fetchDesaparecidos = async () => {
-    setLoading(true);
-    try {
-      const url = zonaId ? `/desaparecidos?zona_id=${zonaId}` : '/desaparecidos';
-      const data = await fetchWithAuth(url);
-      setDesaparecidos(data);
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleMarcarEncontrado = async (id, rescatado) => {
-    try {
-      await fetchWithAuth(`/desaparecidos/${id}`, { 
-        method: 'PUT',
-        body: JSON.stringify({ estado: 'encontrado_vivo', rescatado: rescatado ? 1 : 0 })
-      });
-      fetchDesaparecidos(); // Recargar
-    } catch (error) {
-      alert(error.message);
-    }
-  };
-
-  const handleFileChange = (e) => {
+  const handleFile = (e) => {
     const file = e.target.files[0];
     if (file) {
       setFotoFile(file);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setFotoPreview(reader.result);
-      };
+      reader.onloadend = () => setFotoPreview(reader.result);
       reader.readAsDataURL(file);
     }
   };
@@ -70,328 +88,414 @@ export default function Desaparecidos() {
     setSubmitting(true);
     try {
       const form = new FormData();
-      Object.keys(formData).forEach(key => {
-        if (formData[key]) form.append(key, formData[key]);
-      });
-      
-      if (fotoFile) {
-        form.append('foto', fotoFile);
-      }
+      Object.entries(formData).forEach(([k, v]) => { if (v) form.append(k, v); });
+      if (fotoFile) form.append('foto', fotoFile);
 
-      await fetchWithAuth('/desaparecidos', {
-        method: 'POST',
-        body: form // FormData se envía sin JSON.stringify y el API client ajusta los headers
-      });
-      
-      setShowForm(false);
-      setFormData({
-        nombre_completo: '', edad: '', genero: 'Otro', descripcion_fisica: '', 
-        ultima_ubicacion: '', zona_id: '', contacto_familiar: '', telefono_contacto: ''
-      });
-      setFotoFile(null);
-      setFotoPreview(null);
-      fetchDesaparecidos();
-    } catch (error) {
-      alert(error.message);
-    } finally {
-      setSubmitting(false);
-    }
+      const res = await fetch(`${API_URL}/desaparecidos/public`, { method: 'POST', body: form });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Error'); }
+      setSuccess(true);
+      setTimeout(() => { onSuccess(); onClose(); }, 2000);
+    } catch (err) {
+      alert(err.message);
+    } finally { setSubmitting(false); }
   };
 
-  const getStatusBadge = (estado, rescatado) => {
-    if (estado === 'desaparecido') return (
-      <span style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
-        <AlertTriangle size={14} /> Desaparecido
-      </span>
-    );
-    if (estado === 'encontrado_vivo') {
-      return (
-        <div style={{ display: 'flex', gap: '6px' }}>
-          <span style={{ background: 'rgba(34, 197, 94, 0.2)', color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <UserCheck size={14} /> Encontrado
-          </span>
-          {rescatado === 1 && (
-            <span style={{ background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Shield size={14} /> Rescatado
-            </span>
-          )}
+  const f = (key) => ({ value: formData[key], onChange: e => setFormData({ ...formData, [key]: e.target.value }) });
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }} onClick={onClose}>
+      <div className="glass-panel" style={{ width: '100%', maxWidth: '620px', maxHeight: '92vh', overflowY: 'auto', padding: '2rem', animation: 'slideUp 0.3s cubic-bezier(0.16,1,0.3,1)' }} onClick={e => e.stopPropagation()}>
+        <style>{`@keyframes slideUp { from { opacity:0; transform:translateY(20px) scale(0.95); } to { opacity:1; transform:translateY(0) scale(1); } }`}</style>
+
+        {success ? (
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <CheckCircle2 size={56} style={{ color: '#4ade80', margin: '0 auto 1rem' }} />
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>¡Reporte Registrado!</h2>
+            <p style={{ color: '#94a3b8' }}>Gracias por ayudar a reconectar familias.</p>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.3rem', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertTriangle size={20} style={{ color: '#f59e0b' }} /> Reportar persona desaparecida
+                </h2>
+                <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: 0 }}>¿No logras contactar a alguien? Repórtalo aquí.</p>
+              </div>
+              <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* Photo + Name */}
+              <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
+                <div onClick={() => fileRef.current?.click()} style={{
+                  width: '110px', height: '110px', borderRadius: '14px', background: 'rgba(255,255,255,0.04)',
+                  border: '2px dashed rgba(255,255,255,0.15)', display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', flexShrink: 0
+                }}>
+                  {fotoPreview ? <img src={fotoPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <><ImageIcon size={28} style={{ color: '#64748b', marginBottom: '6px' }} /><span style={{ fontSize: '0.7rem', color: '#64748b' }}>Añadir foto</span></>}
+                  <input type="file" accept="image/*" ref={fileRef} onChange={handleFile} style={{ display: 'none' }} />
+                </div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '4px', display: 'block' }}>Nombre completo de la persona *</label>
+                    <input type="text" required className="input-field" placeholder="Ej: María Pérez García" {...f('nombre_completo')} />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '4px', display: 'block' }}>Edad</label>
+                      <input type="number" className="input-field" placeholder="Ej: 35" {...f('edad')} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '4px', display: 'block' }}>Género</label>
+                      <select className="input-field" {...f('genero')} style={{ width: '100%', padding: '8px 12px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white' }}>
+                        <option value="masculino">Masculino</option>
+                        <option value="femenino">Femenino</option>
+                        <option value="otro">Otro</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Location */}
+              <div style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <h3 style={{ fontSize: '0.9rem', margin: '0 0 0.75rem', color: '#f1f5f9', display: 'flex', alignItems: 'center', gap: '6px' }}><MapPin size={15} style={{ color: '#f59e0b' }} /> ¿Dónde se le vio por última vez?</h3>
+                <input type="text" required className="input-field" placeholder="Ej: Centro Comercial Sambil, Caracas" {...f('ultima_ubicacion')} />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '4px', display: 'block' }}>Descripción física (ropa, rasgos, etc.)</label>
+                <textarea className="input-field" rows="2" placeholder="Ej: Vestía camisa azul, cabello corto, usa lentes..." {...f('descripcion_fisica')} style={{ resize: 'vertical', width: '100%' }} />
+              </div>
+
+              {/* Family Contact */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '4px', display: 'block' }}>Familiar de contacto</label>
+                  <input type="text" className="input-field" placeholder="Nombre del familiar" {...f('contacto_familiar')} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '4px', display: 'block' }}>Teléfono del familiar</label>
+                  <input type="text" className="input-field" placeholder="04XX-XXXXXXX" {...f('telefono_contacto')} />
+                </div>
+              </div>
+
+              {/* Reporter info */}
+              <div style={{ background: 'rgba(59,130,246,0.06)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(59,130,246,0.15)' }}>
+                <h3 style={{ fontSize: '0.9rem', margin: '0 0 0.75rem', color: '#93c5fd', display: 'flex', alignItems: 'center', gap: '6px' }}><User size={15} /> Tus datos (quien reporta)</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '4px', display: 'block' }}>Tu nombre *</label>
+                    <input type="text" required className="input-field" placeholder="Ej: Juan López" {...f('reportado_por')} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '4px', display: 'block' }}>Tu teléfono</label>
+                    <input type="text" className="input-field" placeholder="04XX-XXXXXXX" {...f('telefono_reportante')} />
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" disabled={submitting} style={{
+                padding: '14px', fontSize: '1rem', fontWeight: '700',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                background: submitting ? '#475569' : 'linear-gradient(135deg, #f59e0b, #ea580c)',
+                boxShadow: submitting ? 'none' : '0 4px 16px rgba(245,158,11,0.3)',
+                borderRadius: '12px', border: 'none', color: 'white', cursor: 'pointer'
+              }}>
+                <Send size={18} />
+                {submitting ? 'Enviando...' : 'Enviar Reporte'}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Found Modal ─── */
+function FoundModal({ persona, onClose, onSuccess }) {
+  const [estado, setEstado] = useState('encontrado_vivo');
+  const [reportadoPor, setReportadoPor] = useState('');
+  const [notas, setNotas] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${API_URL}/desaparecidos/public/${persona.id}/encontrado`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado, reportado_por: reportadoPor, notas })
+      });
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Error'); }
+      onSuccess();
+      onClose();
+    } catch (err) { alert(err.message); }
+    finally { setSubmitting(false); }
+  };
+
+  const opts = [
+    { value: 'encontrado_vivo', label: '✅ Está a salvo', color: '#4ade80' },
+    { value: 'en_hospital', label: '🏥 En un hospital', color: '#38bdf8' },
+    { value: 'en_centro', label: '🏠 En un centro de acopio', color: '#c084fc' },
+  ];
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }} onClick={onClose}>
+      <div className="glass-panel" style={{ width: '100%', maxWidth: '440px', padding: '2rem', animation: 'slideUp 0.3s cubic-bezier(0.16,1,0.3,1)' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+          <h2 style={{ fontSize: '1.2rem', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Heart size={20} style={{ color: '#4ade80' }} /> ¡Lo encontré!
+          </h2>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <X size={14} />
+          </button>
         </div>
-      );
-    }
-    return (
-      <span style={{ background: 'rgba(100, 116, 139, 0.2)', color: '#94a3b8', border: '1px solid rgba(100, 116, 139, 0.3)', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '700' }}>
-        Fallecido
-      </span>
-    );
+        <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
+          Reportar que <strong style={{ color: 'white' }}>{persona.nombre_completo}</strong> fue localizado/a.
+        </p>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div>
+            <label style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '6px', display: 'block' }}>¿Dónde está?</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {opts.map(o => (
+                <button key={o.value} type="button" onClick={() => setEstado(o.value)} style={{
+                  background: estado === o.value ? `${o.color}15` : 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${estado === o.value ? `${o.color}50` : 'rgba(255,255,255,0.08)'}`,
+                  color: estado === o.value ? o.color : '#94a3b8',
+                  padding: '10px 14px', borderRadius: '10px', cursor: 'pointer',
+                  fontSize: '0.9rem', fontWeight: '600', textAlign: 'left', transition: 'all 0.2s'
+                }}>
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '4px', display: 'block' }}>Tu nombre *</label>
+            <input type="text" required className="input-field" placeholder="¿Quién reporta?" value={reportadoPor} onChange={e => setReportadoPor(e.target.value)} />
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: '4px', display: 'block' }}>Detalles (opcional)</label>
+            <textarea className="input-field" rows="2" placeholder="Ej: Lo vi en el Hospital Pérez Carreño, sala de emergencias" value={notas} onChange={e => setNotas(e.target.value)} style={{ resize: 'vertical', width: '100%' }} />
+          </div>
+
+          <button type="submit" disabled={submitting} style={{
+            padding: '12px', fontSize: '1rem', fontWeight: '700',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+            background: submitting ? '#475569' : 'linear-gradient(135deg, #22c55e, #16a34a)',
+            borderRadius: '12px', border: 'none', color: 'white', cursor: 'pointer'
+          }}>
+            <CheckCircle2 size={18} />
+            {submitting ? 'Enviando...' : 'Confirmar Localización'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main Page ─── */
+export default function Desaparecidos() {
+  const [desaparecidos, setDesaparecidos] = useState([]);
+  const [stats, setStats] = useState({ total: 0, sin_contacto: 0, localizados: 0, en_hospital: 0, en_centro: 0, fallecidos: 0 });
+  const [zonaId, setZonaId] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterEstado, setFilterEstado] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [showReport, setShowReport] = useState(false);
+  const [foundTarget, setFoundTarget] = useState(null);
+  const { user } = useAuth();
+
+  useEffect(() => { fetchAll(); }, [zonaId, filterEstado]);
+
+  const fetchAll = async () => {
+    setLoading(true);
+    try {
+      let url = `${API_URL}/desaparecidos?`;
+      if (zonaId) url += `zona_id=${zonaId}&`;
+      if (filterEstado) url += `estado=${filterEstado}&`;
+      const res = await fetch(url);
+      const data = await res.json();
+      setDesaparecidos(Array.isArray(data) ? data : []);
+
+      const sRes = await fetch(`${API_URL}/desaparecidos/stats`);
+      const sData = await sRes.json();
+      setStats(sData);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
   const filtered = desaparecidos.filter(p => {
     if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
-    return p.nombre_completo.toLowerCase().includes(term) || 
-           p.ultima_ubicacion?.toLowerCase().includes(term) ||
-           p.contacto_familiar?.toLowerCase().includes(term);
+    const t = searchTerm.toLowerCase();
+    return (p.nombre_completo || '').toLowerCase().includes(t) ||
+           (p.ultima_ubicacion || '').toLowerCase().includes(t) ||
+           (p.contacto_familiar || '').toLowerCase().includes(t);
   });
 
   return (
     <div className="container" style={{ paddingBottom: '3rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h1 className="title" style={{ fontSize: '2.5rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <UserCheck size={36} style={{ color: 'var(--primary)' }} />
-            Desaparecidos
-          </h1>
-          <p className="subtitle" style={{ margin: 0, fontSize: '1.1rem', opacity: 0.8 }}>Registro y seguimiento de personas desaparecidas.</p>
-        </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+      {/* Header */}
+      <div style={{ marginBottom: '2rem' }}>
+        <span style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444', animation: 'pulse 2s infinite' }} />
+          Emergencia · Sismo del 24 de junio
+        </span>
+        <h1 className="title" style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>
+          Reconectemos a cada familia.
+        </h1>
+        <p style={{ color: '#94a3b8', fontSize: '1rem', margin: 0, maxWidth: '700px', lineHeight: 1.6 }}>
+          Si no logras comunicarte con alguien, repórtalo. Si reconoces a alguien de los registros, márcalo como localizado para dar tranquilidad a su familia.
+        </p>
+      </div>
+
+      {/* Stats */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '2rem', flexWrap: 'wrap' }}>
+        <StatCard value={stats.total || 0} label="Total reportes" color="#e2e8f0" icon={User} />
+        <StatCard value={stats.sin_contacto || 0} label="Sin contacto" color="#f87171" icon={AlertTriangle} />
+        <StatCard value={stats.localizados || 0} label="Localizados" color="#4ade80" icon={UserCheck} />
+        <StatCard value={(stats.en_hospital || 0) + (stats.en_centro || 0)} label="En hospital / centro" color="#38bdf8" icon={Building2} />
+      </div>
+
+      {/* CTA */}
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+        <button onClick={() => setShowReport(true)} style={{
+          padding: '14px 28px', fontSize: '1rem', fontWeight: '700',
+          display: 'flex', alignItems: 'center', gap: '8px',
+          background: 'linear-gradient(135deg, #f59e0b, #ea580c)',
+          boxShadow: '0 4px 20px rgba(245,158,11,0.3)',
+          borderRadius: '12px', border: 'none', color: 'white', cursor: 'pointer'
+        }}>
+          <Plus size={20} /> Reportar a alguien
+        </button>
+      </div>
+
+      {/* Filters */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '1.5rem', alignItems: 'center' }}>
+        <Chip active={!filterEstado} color="#e2e8f0" label="Todos" onClick={() => setFilterEstado('')} />
+        <Chip active={filterEstado === 'desaparecido'} color="#f87171" label="Sin contacto" dot onClick={() => setFilterEstado('desaparecido')} />
+        <Chip active={filterEstado === 'encontrado_vivo'} color="#4ade80" label="Localizados" dot onClick={() => setFilterEstado('encontrado_vivo')} />
+        <Chip active={filterEstado === 'en_hospital'} color="#38bdf8" label="En hospital" dot onClick={() => setFilterEstado('en_hospital')} />
+        <Chip active={filterEstado === 'en_centro'} color="#c084fc" label="En centro" dot onClick={() => setFilterEstado('en_centro')} />
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
           <div style={{ position: 'relative' }}>
-            <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-            <input 
-              type="text" 
-              placeholder="Buscar nombre o ubicación..." 
-              className="input-field"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ paddingLeft: '38px', width: '250px' }}
-            />
+            <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+            <input type="text" className="input-field" placeholder="Buscar por nombre o lugar…" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+              style={{ paddingLeft: '34px', width: '220px', fontSize: '0.85rem' }} />
           </div>
           <ZonaFilter value={zonaId} onChange={setZonaId} />
-          {user && (
-            <button onClick={() => setShowForm(true)} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <AlertTriangle size={18} /> Registrar Reporte
-            </button>
-          )}
         </div>
       </div>
 
-      {showForm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
-          <div className="glass-panel" style={{ width: '100%', maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(15,23,42,0.95)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1rem' }}>
-              <h2 style={{ margin: 0, color: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <AlertTriangle size={24} style={{ color: '#f59e0b' }} /> Registrar Desaparecido
-              </h2>
-              <button onClick={() => setShowForm(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
-                <X size={24} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              
-              {/* Image Upload Area */}
-              <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start' }}>
-                <div 
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{
-                    width: '120px', height: '120px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)',
-                    border: '2px dashed rgba(255,255,255,0.2)', display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', flexShrink: 0
-                  }}
-                >
-                  {fotoPreview ? (
-                    <img src={fotoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <>
-                      <ImageIcon size={32} style={{ color: '#94a3b8', marginBottom: '8px' }} />
-                      <span style={{ fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center' }}>Añadir Foto</span>
-                    </>
-                  )}
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    ref={fileInputRef} 
-                    onChange={handleFileChange} 
-                    style={{ display: 'none' }} 
-                  />
-                </div>
-                
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div className="form-group">
-                    <label style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '6px', display: 'block', fontWeight: '500' }}>Nombre Completo *</label>
-                    <input type="text" required className="input-field" value={formData.nombre_completo} onChange={e => setFormData({...formData, nombre_completo: e.target.value})} />
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div className="form-group">
-                      <label style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '6px', display: 'block', fontWeight: '500' }}>Edad</label>
-                      <input type="number" className="input-field" value={formData.edad} onChange={e => setFormData({...formData, edad: e.target.value})} />
-                    </div>
-                    <div className="form-group" style={{ position: 'relative', zIndex: 10 }}>
-                      <label style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '6px', display: 'block', fontWeight: '500' }}>Género</label>
-                      <CustomSelect 
-                        value={formData.genero}
-                        onChange={e => setFormData({...formData, genero: e.target.value})}
-                        isSearchable={false}
-                        options={[
-                          { value: 'masculino', label: 'Masculino' },
-                          { value: 'femenino', label: 'Femenino' },
-                          { value: 'otro', label: 'Otro' }
-                        ]}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '6px', display: 'block', fontWeight: '500' }}>Descripción Física</label>
-                <textarea className="input-field" rows="2" value={formData.descripcion_fisica} onChange={e => setFormData({...formData, descripcion_fisica: e.target.value})}></textarea>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group" style={{ position: 'relative', zIndex: 9 }}>
-                  <label style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '6px', display: 'block', fontWeight: '500' }}>Zona *</label>
-                  {/* Reuse ZonaFilter for selection */}
-                  <CustomSelect 
-                    value={formData.zona_id}
-                    onChange={e => setFormData({...formData, zona_id: e.target.value})}
-                    options={[{value: '1', label: 'Caracas'}, {value: '2', label: 'Miranda'}, {value: '3', label: 'Vargas'}]} // Idealy fetch from context or API
-                  />
-                </div>
-                <div className="form-group">
-                  <label style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '6px', display: 'block', fontWeight: '500' }}>Última Ubicación Conocida</label>
-                  <input type="text" className="input-field" value={formData.ultima_ubicacion} onChange={e => setFormData({...formData, ultima_ubicacion: e.target.value})} />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
-                  <label style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '6px', display: 'block', fontWeight: '500' }}>Contacto Familiar</label>
-                  <input type="text" className="input-field" value={formData.contacto_familiar} onChange={e => setFormData({...formData, contacto_familiar: e.target.value})} />
-                </div>
-                <div className="form-group">
-                  <label style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '6px', display: 'block', fontWeight: '500' }}>Teléfono de Contacto</label>
-                  <input type="text" className="input-field" value={formData.telefono_contacto} onChange={e => setFormData({...formData, telefono_contacto: e.target.value})} />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem' }}>
-                <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary" style={{ flex: 1 }} disabled={submitting}>Cancelar</button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={submitting}>
-                  {submitting ? 'Guardando...' : 'Guardar Reporte'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
+      {/* Grid */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
           <div className="spin" style={{ display: 'inline-block', marginBottom: '1rem' }}><AlertTriangle size={32} /></div>
           <p>Cargando registros...</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="glass-panel" style={{ textAlign: 'center', padding: '4rem 2rem', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="glass-panel" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
           <User size={48} style={{ color: '#475569', marginBottom: '1rem' }} />
-          <h3 style={{ margin: '0 0 0.5rem 0', color: 'white', fontSize: '1.25rem' }}>No hay resultados</h3>
-          <p style={{ color: '#94a3b8', margin: 0 }}>No se encontraron personas con los filtros seleccionados.</p>
+          <h3 style={{ margin: '0 0 0.5rem', color: 'white' }}>No hay resultados</h3>
+          <p style={{ color: '#94a3b8', margin: '0 0 1.5rem' }}>No se encontraron personas con los filtros seleccionados.</p>
+          <button onClick={() => setShowReport(true)} style={{
+            padding: '10px 24px', background: 'linear-gradient(135deg, #f59e0b, #ea580c)',
+            border: 'none', borderRadius: '10px', color: 'white', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem'
+          }}>
+            <Plus size={16} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px' }} />
+            Reportar a alguien
+          </button>
         </div>
       ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-          gap: '1.5rem'
-        }}>
-          {filtered.map(persona => (
-            <div key={persona.id} style={{
-              background: 'rgba(30, 41, 59, 0.7)',
-              backdropFilter: 'blur(16px)',
-              borderRadius: '16px',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-              position: 'relative'
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+          {filtered.map(p => (
+            <div key={p.id} style={{
+              background: 'rgba(30,41,59,0.7)', backdropFilter: 'blur(16px)',
+              borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)',
+              overflow: 'hidden', display: 'flex', flexDirection: 'column',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.2)', position: 'relative'
             }}>
-              {persona.foto_url ? (
-                <div style={{ width: '100%', height: '220px', position: 'relative' }}>
-                  <img 
-                    src={`${BASE_URL}${persona.foto_url}`} 
-                    alt={persona.nombre_completo} 
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
+              {/* Image */}
+              {p.foto_url ? (
+                <div style={{ width: '100%', height: '200px', position: 'relative' }}>
+                  <img src={p.foto_url.startsWith('http') ? p.foto_url : `${BASE_URL}${p.foto_url}`} alt={p.nombre_completo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0) 50%, rgba(15,23,42,1) 100%)' }} />
-                  <div style={{ position: 'absolute', top: '12px', right: '12px' }}>
-                    {getStatusBadge(persona.estado, persona.rescatado)}
-                  </div>
+                  <div style={{ position: 'absolute', top: '10px', right: '10px' }}><StatusBadge estado={p.estado} rescatado={p.rescatado} /></div>
                 </div>
               ) : (
-                <div style={{ 
-                  width: '100%', height: '120px', background: 'rgba(255,255,255,0.02)', 
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'relative'
-                }}>
-                  <User size={48} style={{ color: 'rgba(255,255,255,0.1)' }} />
-                  <div style={{ position: 'absolute', top: '12px', right: '12px' }}>
-                    {getStatusBadge(persona.estado, persona.rescatado)}
-                  </div>
+                <div style={{ width: '100%', height: '100px', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'relative' }}>
+                  <User size={40} style={{ color: 'rgba(255,255,255,0.08)' }} />
+                  <div style={{ position: 'absolute', top: '10px', right: '10px' }}><StatusBadge estado={p.estado} rescatado={p.rescatado} /></div>
                 </div>
               )}
-              
-              <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', flex: 1, marginTop: persona.foto_url ? '-50px' : '0', zIndex: 2 }}>
-                <h3 style={{ fontSize: '1.25rem', margin: '0 0 12px 0', color: 'white', fontWeight: '800' }}>
-                  {persona.nombre_completo}
-                </h3>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#94a3b8', fontSize: '0.85rem' }}>
-                    <Calendar size={14} style={{ color: '#60a5fa' }} /> {persona.edad ? `${persona.edad} años` : 'Edad N/A'}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#94a3b8', fontSize: '0.85rem' }}>
-                    <User size={14} style={{ color: '#a78bfa' }} /> {persona.genero}
-                  </div>
+
+              {/* Content */}
+              <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flex: 1, marginTop: p.foto_url ? '-40px' : 0, zIndex: 2 }}>
+                <h3 style={{ fontSize: '1.15rem', margin: '0 0 10px', color: 'white', fontWeight: '800' }}>{p.nombre_completo}</h3>
+
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                  {p.edad && <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#94a3b8', fontSize: '0.82rem' }}><Calendar size={13} style={{ color: '#60a5fa' }} /> {p.edad} años</span>}
+                  {p.genero && p.genero !== 'otro' && <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#94a3b8', fontSize: '0.82rem' }}><User size={13} style={{ color: '#a78bfa' }} /> {p.genero}</span>}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px', flex: 1 }}>
-                  {persona.ultima_ubicacion && (
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', color: '#cbd5e1', fontSize: '0.85rem' }}>
-                      <MapPin size={14} style={{ marginTop: '3px', color: '#f59e0b', flexShrink: 0 }} />
-                      <span style={{ lineHeight: 1.4 }}><strong>Últ. vez visto:</strong> {persona.ultima_ubicacion} {persona.zona_nombre && `(${persona.zona_nombre})`}</span>
+                {p.ultima_ubicacion && (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', color: '#cbd5e1', fontSize: '0.85rem', marginBottom: '10px' }}>
+                    <MapPin size={14} style={{ marginTop: '2px', color: '#f59e0b', flexShrink: 0 }} />
+                    <span><strong>Últ. vez visto:</strong> {p.ultima_ubicacion} {p.zona_nombre && `(${p.zona_nombre})`}</span>
+                  </div>
+                )}
+
+                {p.descripcion_fisica && (
+                  <p style={{ margin: '0 0 12px', fontSize: '0.82rem', color: '#94a3b8', lineHeight: 1.5, background: 'rgba(0,0,0,0.2)', padding: '8px 10px', borderRadius: '8px' }}>
+                    {p.descripcion_fisica}
+                  </p>
+                )}
+
+                {/* Contact */}
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px', marginTop: 'auto' }}>
+                  {(p.contacto_familiar || p.telefono_contacto) && (
+                    <div style={{ fontSize: '0.82rem', color: '#cbd5e1', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span>{p.contacto_familiar || 'Familiar no especificado'}</span>
+                      {p.telefono_contacto && <a href={`tel:${p.telefono_contacto}`} style={{ color: '#4ade80', textDecoration: 'none', fontWeight: '600' }}>{p.telefono_contacto}</a>}
                     </div>
                   )}
-                  {persona.descripcion_fisica && (
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8', lineHeight: 1.5, background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '8px' }}>
-                      {persona.descripcion_fisica}
-                    </p>
+                  {p.reportado_por && (
+                    <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Reportado por: {p.reportado_por}</span>
                   )}
                 </div>
 
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', fontWeight: '700' }}>Contacto de Familia</span>
-                  <div style={{ fontSize: '0.85rem', color: '#e2e8f0', display: 'flex', justifyContent: 'space-between' }}>
-                    <span>{persona.contacto_familiar || 'No especificado'}</span>
-                    {persona.telefono_contacto && (
-                      <a href={`tel:${persona.telefono_contacto}`} style={{ color: '#4ade80', textDecoration: 'none', fontWeight: '600' }}>
-                        {persona.telefono_contacto}
-                      </a>
-                    )}
-                  </div>
-                </div>
-
-                {user && user.rol !== 'donante' && persona.estado === 'desaparecido' && (
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                    <button 
-                      onClick={() => handleMarcarEncontrado(persona.id, false)}
-                      className="btn btn-secondary" 
-                      style={{ flex: 1, padding: '8px', fontSize: '0.8rem', background: 'rgba(34,197,94,0.1)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.2)' }}
-                    >
-                      Encontrado
-                    </button>
-                    <button 
-                      onClick={() => handleMarcarEncontrado(persona.id, true)}
-                      className="btn btn-primary" 
-                      style={{ flex: 1, padding: '8px', fontSize: '0.8rem', background: 'rgba(56,189,248,0.1)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.2)' }}
-                    >
-                      <Shield size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }} /> Rescatado
-                    </button>
-                  </div>
+                {/* Found button */}
+                {p.estado === 'desaparecido' && (
+                  <button onClick={() => setFoundTarget(p)} style={{
+                    marginTop: '12px', padding: '10px', fontSize: '0.88rem', fontWeight: '700',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                    background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)',
+                    color: '#4ade80', borderRadius: '10px', cursor: 'pointer', width: '100%'
+                  }}>
+                    <Heart size={16} /> Lo encontré
+                  </button>
                 )}
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Modals */}
+      {showReport && <ReportModal onClose={() => setShowReport(false)} onSuccess={fetchAll} />}
+      {foundTarget && <FoundModal persona={foundTarget} onClose={() => setFoundTarget(null)} onSuccess={fetchAll} />}
     </div>
   );
 }
