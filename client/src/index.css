@@ -246,6 +246,22 @@ body {
     padding: 10px 16px;
     font-size: 0.9rem;
   }
+  
+  .map-layout-container {
+    flex-direction: column-reverse !important;
+  }
+  
+  .map-sidebar {
+    width: 100% !important;
+    height: 40% !important;
+    border-right: none !important;
+    border-top: 1px solid rgba(255,255,255,0.06) !important;
+  }
+  
+  .map-layout-container > div:last-child {
+    height: 60% !important;
+    flex: none !important;
+  }
 }
 
 @media (max-width: 480px) {

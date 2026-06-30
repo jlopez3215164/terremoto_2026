@@ -192,9 +192,9 @@ export default function Mapa() {
       </div>
 
       {/* Sidebar + Map */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div className="map-layout-container" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Sidebar */}
-        <div style={{
+        <div className="map-sidebar" style={{
           width: '320px', flexShrink: 0, overflowY: 'auto',
           background: 'rgba(15,23,42,0.98)', borderRight: '1px solid rgba(255,255,255,0.06)',
           padding: '8px',
