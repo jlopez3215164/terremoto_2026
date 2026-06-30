@@ -498,7 +498,7 @@ export default function Desaparecidos() {
 
                   {/* Found button */}
                   {p.estado === 'desaparecido' && (
-                    <button onClick={() => setFoundTarget(p)} style={{
+                    <button onClick={(e) => { e.stopPropagation(); setFoundTarget(p); }} style={{
                       marginTop: '12px', padding: '10px', fontSize: '0.88rem', fontWeight: '700',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                       background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)',
