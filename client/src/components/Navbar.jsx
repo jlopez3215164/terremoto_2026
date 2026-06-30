@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Activity, MapPin, Heart, Users, LogOut, LogIn, Map } from 'lucide-react';
+import { Activity, MapPin, Heart, Users, LogOut, LogIn, Map, Building2 } from 'lucide-react';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -35,6 +35,9 @@ export default function Navbar() {
         
         {user ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginLeft: '1rem', paddingLeft: '1rem', borderLeft: '1px solid var(--border-light)' }}>
+            <Link to="/mis-centros" className={`btn ${isActive('/mis-centros') ? 'btn-primary' : ''}`} style={{ padding: '6px 12px', fontSize: '0.875rem', background: isActive('/mis-centros') ? '' : 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <Building2 size={16} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }}/> Mis Centros
+            </Link>
             <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
               Hola, <strong>{user.nombre}</strong> <span className="badge badge-info">{user.rol}</span>
             </span>

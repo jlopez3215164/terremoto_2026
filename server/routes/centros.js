@@ -53,6 +53,27 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Listar centros administrados por el usuario autenticado
+router.get('/mis-centros', authMiddleware, async (req, res) => {
+  try {
+    const usuario_id = req.user.id;
+    
+    let query = `
+      SELECT c.*, z.nombre as zona_nombre 
+      FROM centros_donacion c
+      LEFT JOIN zonas z ON c.zona_id = z.id
+      WHERE c.activo = true AND c.usuario_id = ?
+      ORDER BY c.created_at DESC
+    `;
+
+    const [centros] = await pool.query(query, [usuario_id]);
+    res.json(centros);
+  } catch (error) {
+    console.error('Error al listar mis centros:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // Crear centro de donación
 router.post('/', authMiddleware, upload.single('logo'), async (req, res) => {
   try {

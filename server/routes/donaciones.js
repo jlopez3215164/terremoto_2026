@@ -41,6 +41,44 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Listar donaciones para un centro específico (solo para el admin del centro o superadmins)
+router.get('/centro/:centroId', authMiddleware, async (req, res) => {
+  try {
+    const { centroId } = req.params;
+    const usuario_id = req.user.id;
+    const user_rol = req.user.rol;
+
+    // Verificar propiedad del centro o rol admin
+    const [centroCheck] = await pool.query(
+      'SELECT id, usuario_id FROM centros_donacion WHERE id = ?',
+      [centroId]
+    );
+
+    if (centroCheck.length === 0) {
+      return res.status(404).json({ error: 'Centro no encontrado' });
+    }
+
+    if (centroCheck[0].usuario_id !== usuario_id && user_rol !== 'admin') {
+      return res.status(403).json({ error: 'No tienes permiso para ver las donaciones de este centro' });
+    }
+
+    const query = `
+      SELECT d.*, c.nombre as centro_nombre, z.nombre as zona_nombre 
+      FROM donaciones d
+      LEFT JOIN centros_donacion c ON d.centro_id = c.id
+      LEFT JOIN zonas z ON c.zona_id = z.id
+      WHERE d.centro_id = ?
+      ORDER BY d.created_at DESC
+    `;
+
+    const [donaciones] = await pool.query(query, [centroId]);
+    res.json(donaciones);
+  } catch (error) {
+    console.error('Error al listar donaciones del centro:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // Registrar nueva donación
 router.post('/', authMiddleware, async (req, res) => {
   try {

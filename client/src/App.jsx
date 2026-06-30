@@ -8,6 +8,7 @@ import Centros from './pages/Centros';
 import Donaciones from './pages/Donaciones';
 import Desaparecidos from './pages/Desaparecidos';
 import Mapa from './pages/Mapa';
+import MisCentros from './pages/MisCentros';
 
 // Rutas protegidas
 const ProtectedRoute = ({ children }) => {
@@ -31,6 +32,7 @@ function AppRoutes() {
           <Route path="/centros" element={<Centros />} />
           <Route path="/mapa" element={<Mapa />} />
           <Route path="/donaciones" element={<ProtectedRoute><Donaciones /></ProtectedRoute>} />
+          <Route path="/mis-centros" element={<ProtectedRoute><MisCentros /></ProtectedRoute>} />
           <Route path="/desaparecidos" element={<Desaparecidos />} />
         </Routes>
       </div>
