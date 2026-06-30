@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { fetchWithAuth } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { Building2, Package, CheckCircle, Clock, MapPin } from 'lucide-react';
+import { Building2, Package, CheckCircle, Clock, MapPin, Search } from 'lucide-react';
 
 export default function MisCentros() {
   const [centros, setCentros] = useState([]);
   const [selectedCentro, setSelectedCentro] = useState(null);
   const [donaciones, setDonaciones] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuth();
 
   useEffect(() => {
@@ -58,6 +59,11 @@ export default function MisCentros() {
     }
   };
 
+  const filteredCentros = centros.filter(c => {
+    if (!searchTerm) return true;
+    return c.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+
   if (loading) return <div className="container" style={{ padding: '4rem', textAlign: 'center' }}>Cargando panel de gestión...</div>;
 
   return (
@@ -79,8 +85,22 @@ export default function MisCentros() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: '2rem', alignItems: 'start' }}>
           {/* Sidebar: Lista de Centros */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>Tus Centros</h3>
-            {centros.map(c => (
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '0' }}>Tus Centros</h3>
+            
+            <div style={{ position: 'relative' }}>
+              <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+              <input 
+                type="text" 
+                placeholder="Buscar centro..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="input-field"
+                style={{ paddingLeft: '36px', fontSize: '0.9rem', width: '100%' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '65vh', overflowY: 'auto', paddingRight: '4px' }}>
+              {filteredCentros.map(c => (
               <div 
                 key={c.id}
                 onClick={() => handleSelectCentro(c)}
@@ -99,6 +119,7 @@ export default function MisCentros() {
                 </div>
               </div>
             ))}
+            </div>
           </div>
 
           {/* Main Area: Donaciones del Centro */}
