@@ -112,16 +112,20 @@ function DonationModal({ centro, onClose, onSuccess }) {
 
     fetch(import.meta.env.MODE === 'development' ? 'http://localhost:3001/api/donaciones/public/centro/' + centro.id : '/api/donaciones/public/centro/' + centro.id)
       .then(res => res.json())
-      .then(data => setDonations(data))
+      .then(data => {
+        if (Array.isArray(data)) setDonations(data);
+        else setDonations([]);
+      })
       .catch(console.error);
   }, [centro]);
 
   const getRemaining = (insumoName, requestedStr) => {
-    const requested = parseInt(requestedStr.replace(/[^0-9]/g, ''), 10) || 0;
+    const str = requestedStr || '';
+    const requested = parseInt(String(str).replace(/[^0-9]/g, ''), 10) || 0;
     if (!requested) return null;
-    const donated = donations
+    const donated = (Array.isArray(donations) ? donations : [])
       .filter(d => d.tipo_ayuda === insumoName)
-      .reduce((sum, d) => sum + (parseInt(d.cantidad.replace(/[^0-9]/g, ''), 10) || 0), 0);
+      .reduce((sum, d) => sum + (parseInt(String(d.cantidad || '').replace(/[^0-9]/g, ''), 10) || 0), 0);
     return Math.max(0, requested - donated);
   };
 
@@ -343,7 +347,8 @@ function DonationModal({ centro, onClose, onSuccess }) {
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 function AdminCentroModal({ centro, onClose, onSuccess }) {
@@ -783,6 +788,30 @@ function DonorsModal({ centro, onClose }) {
   );
 }
 
+
+class ModalErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'red', color: 'white', padding: '2rem' }}>
+          <h2>Algo salió mal en el Modal:</h2>
+          <pre>{this.state.error.toString()}</pre>
+          <pre>{this.state.error.stack}</pre>
+          <button onClick={() => this.setState({ hasError: false })}>Reintentar</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function Centros() {
   const [centros, setCentros] = useState([]);
   const [zonaId, setZonaId] = useState('');
@@ -974,11 +1003,13 @@ export default function Centros() {
         <DonorsModal centro={viewingDonors} onClose={() => setViewingDonors(null)} />
       )}
       {donatingTo && (
+        <ModalErrorBoundary>
         <DonationModal 
           centro={donatingTo} 
           onClose={() => setDonatingTo(null)}
           onSuccess={() => {}}
         />
+        </ModalErrorBoundary>
       )}
       
       {/* Admin modal */}
