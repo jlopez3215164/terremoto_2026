@@ -1,4 +1,4 @@
-export const API_URL = 'http://localhost:3001/api';
+export const API_URL = import.meta.env.MODE === 'development' ? 'http://localhost:3001/api' : '/api';
 
 export async function fetchWithAuth(url, options = {}) {
   const token = localStorage.getItem('token');
