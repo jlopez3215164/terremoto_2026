@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="es" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1"
+    />
+    <title>Ayuda en Camino — Coordinación de Ayuda Humanitaria</title>
+    <meta
+      name="description"
+      content="Conectando organizaciones, centros de acopio y donantes durante la emergencia en Venezuela. Coordina suministros en tiempo real."
+    />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:title" content="Ayuda en Camino" />
+    <meta
+      property="og:description"
+      content="Coordinación de ayuda humanitaria en tiempo real — Venezuela."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://ayudaencamino.com/" />
+    <meta property="og:image" content="https://ayudaencamino.com/og-image.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Ayuda en Camino — Coordinación de ayuda humanitaria en Venezuela" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Ayuda en Camino" />
+    <meta
+      name="twitter:description"
+      content="Coordinación de ayuda humanitaria en tiempo real — Venezuela."
+    />
+    <meta name="twitter:image" content="https://ayudaencamino.com/og-image.jpg" />
+    <meta name="twitter:image:alt" content="Ayuda en Camino — Coordinación de ayuda humanitaria en Venezuela" />
+    <meta name="twitter:url" content="https://ayudaencamino.com/" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <script type="module" crossorigin src="/assets/index-B6xQufKJ.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CLxdanwy.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
