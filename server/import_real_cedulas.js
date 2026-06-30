@@ -26,18 +26,24 @@ const fs = require('fs');
       const estado = estadoMap[person.category] || 'desaparecido';
       
       // Insert into DB
-      let phone = (person.contact || '0000').substring(0, 20);
       await pool.query(
-        `INSERT INTO desaparecidos (nombre_completo, cedula, ultima_ubicacion, estado, descripcion_fisica, foto_url, reportado_por, telefono_reportante)
-         VALUES (?, ?, ?, ?, ?, ?, 'RedAyudaVenezuela', ?)`,
+        `INSERT INTO desaparecidos 
+         (nombre_completo, cedula, edad, ultima_ubicacion, estado, descripcion_fisica, foto_url, reportado_por, telefono_reportante, category, label, detail, slug, contact)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'RedAyudaVenezuela', ?, ?, ?, ?, ?, ?)`,
         [
           person.name || 'Desconocido', 
           cedula, 
+          person.age || null,
           person.loc || null, 
           estado, 
           person.detail || null, 
           person.photo_url || null,
-          phone
+          (person.contact || '0000').substring(0, 20),
+          person.category || null,
+          person.label || null,
+          person.detail || null,
+          person.slug || null,
+          person.contact || null
         ]
       );
       imported++;
