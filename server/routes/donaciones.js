@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     const { zona_id, estado, tipo_ayuda } = req.query;
     
     let query = `
-      SELECT d.*, c.nombre as centro_nombre, z.nombre as zona_nombre 
+      SELECT d.*, c.nombre as centro_nombre, c.usuario_id as centro_usuario_id, z.nombre as zona_nombre 
       FROM donaciones d
       LEFT JOIN centros_donacion c ON d.centro_id = c.id
       LEFT JOIN zonas z ON c.zona_id = z.id
