@@ -9,6 +9,7 @@ import Donaciones from './pages/Donaciones';
 import Desaparecidos from './pages/Desaparecidos';
 import Mapa from './pages/Mapa';
 import Mapa3D from './pages/Mapa3D';
+import Noticias from './pages/Noticias';
 import MisCentros from './pages/MisCentros';
 import AudioPlayer from './components/AudioPlayer';
 
@@ -35,6 +36,7 @@ function AppRoutes() {
           <Route path="/centros" element={<Centros />} />
           <Route path="/mapa" element={<Mapa />} />
           <Route path="/mapa3d" element={<Mapa3D />} />
+          <Route path="/noticias" element={<Noticias />} />
           <Route path="/donaciones" element={<ProtectedRoute><Donaciones /></ProtectedRoute>} />
           <Route path="/mis-centros" element={<ProtectedRoute><MisCentros /></ProtectedRoute>} />
           <Route path="/desaparecidos" element={<Desaparecidos />} />

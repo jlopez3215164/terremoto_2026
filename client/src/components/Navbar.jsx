@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Activity, MapPin, Heart, Users, LogOut, LogIn, Map, Building2 } from 'lucide-react';
+import { Activity, MapPin, Heart, Users, LogOut, LogIn, Map, Building2, Newspaper } from 'lucide-react';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -22,6 +22,9 @@ export default function Navbar() {
       <div className="nav-links">
         <Link to="/centros" className={`nav-link ${isActive('/centros')}`}>
           <MapPin size={18} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }}/> Centros
+        </Link>
+        <Link to="/noticias" className={`nav-link ${isActive('/noticias')}`}>
+          <Newspaper size={18} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }}/> Noticias
         </Link>
         <Link to="/mapa" className={`nav-link ${isActive('/mapa')}`}>
           <Map size={18} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom'}}/> Mapa

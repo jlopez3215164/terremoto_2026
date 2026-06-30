@@ -9,6 +9,7 @@ const zonasRoutes = require('./routes/zonas');
 const centrosRoutes = require('./routes/centros');
 const donacionesRoutes = require('./routes/donaciones');
 const desaparecidosRoutes = require('./routes/desaparecidos');
+const noticiasRoutes = require('./routes/noticias');
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use('/api/zonas', zonasRoutes);
 app.use('/api/centros', centrosRoutes);
 app.use('/api/donaciones', donacionesRoutes);
 app.use('/api/desaparecidos', desaparecidosRoutes);
+app.use('/api/noticias', noticiasRoutes);
 
 // Servir el frontend de React (sitio estático en producción)
 app.use(express.static(path.join(__dirname, '../client/dist')));
