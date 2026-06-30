@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap, Tooltip } from 'react-leaflet';
 import { fetchWithAuth } from '../api/client';
-import { MapPin, Phone, User, Package, Heart, Clock, Building2, ExternalLink, Navigation, Locate, AlertTriangle } from 'lucide-react';
+import { MapPin, Phone, User, Package, Heart, Clock, Building2, ExternalLink, Navigation, Locate, AlertTriangle, Box } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -148,10 +148,18 @@ export default function Mapa() {
             color: '#e2e8f0',
             borderRadius: '8px', padding: '6px 14px', cursor: 'pointer',
             fontSize: '0.8rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px',
-            marginRight: '8px'
           }}>
             <Navigation size={14} /> Vista: {mapTheme === 'dark' ? 'Táctica' : 'Normal'}
           </button>
+
+          <a href="/mapa3d" style={{
+            background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.3)',
+            color: '#c4b5fd', borderRadius: '8px', padding: '6px 14px', cursor: 'pointer',
+            fontSize: '0.8rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px',
+            textDecoration: 'none',
+          }}>
+            <Box size={14} /> Globo 3D
+          </a>
 
           <button onClick={locateMe} disabled={locating} style={{
             background: userPos ? 'rgba(34,197,94,0.2)' : 'rgba(59,130,246,0.2)',
