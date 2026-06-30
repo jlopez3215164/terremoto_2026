@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap, Tooltip } from 'react-leaflet';
 import { fetchWithAuth } from '../api/client';
-import { MapPin, Phone, User, Package, Heart, Clock, Building2, ExternalLink, Navigation, Locate } from 'lucide-react';
+import { MapPin, Phone, User, Package, Heart, Clock, Building2, ExternalLink, Navigation, Locate, AlertTriangle } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -45,21 +45,51 @@ function FlyTo({ center, zoom }) {
   return null;
 }
 
+const ZONAS_COORDS = {
+  'Distrito Capital': { lat: 10.48, lng: -66.87, radius: 15000 },
+  'La Guaira': { lat: 10.60, lng: -66.93, radius: 20000 },
+  'Carabobo': { lat: 10.19, lng: -67.97, radius: 35000 },
+  'Aragua': { lat: 10.23, lng: -67.56, radius: 35000 },
+  'Miranda': { lat: 10.25, lng: -66.15, radius: 45000 },
+  'Delta Amacuro': { lat: 8.81, lng: -61.64, radius: 70000 },
+  'Bolívar': { lat: 6.17, lng: -63.53, radius: 90000 },
+  'Yaracuy': { lat: 10.33, lng: -68.74, radius: 30000 },
+  'Monagas': { lat: 9.31, lng: -63.02, radius: 45000 },
+  'Zulia': { lat: 9.84, lng: -72.06, radius: 60000 },
+  'Falcón': { lat: 11.23, lng: -69.86, radius: 55000 },
+};
+
+const getColorByNivel = (nivel) => {
+  switch(nivel) {
+    case 'critico': return '#ef4444'; // red-500
+    case 'grave': return '#f97316'; // orange-500
+    case 'moderado': return '#eab308'; // yellow-500
+    case 'leve': return '#84cc16'; // lime-500
+    default: return '#3b82f6';
+  }
+};
+
 export default function Mapa() {
   const [centros, setCentros] = useState([]);
+  const [zonas, setZonas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userPos, setUserPos] = useState(null);
   const [locating, setLocating] = useState(false);
   const [sortByDistance, setSortByDistance] = useState(false);
   const [flyTarget, setFlyTarget] = useState(null);
+  const [mapTheme, setMapTheme] = useState('dark');
 
   useEffect(() => {
-    fetchWithAuth('/centros')
-      .then(data => {
-        setCentros(data.filter(c => c.latitud && c.longitud));
-        setLoading(false);
-      })
-      .catch(err => { console.error(err); setLoading(false); });
+    Promise.all([
+      fetchWithAuth('/centros'),
+      fetchWithAuth('/zonas')
+    ])
+    .then(([centrosData, zonasData]) => {
+      setCentros(centrosData.filter(c => c.latitud && c.longitud));
+      setZonas(zonasData);
+      setLoading(false);
+    })
+    .catch(err => { console.error(err); setLoading(false); });
   }, []);
 
   const locateMe = () => {
@@ -111,6 +141,17 @@ export default function Mapa() {
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button onClick={() => setMapTheme(prev => prev === 'dark' ? 'light' : 'dark')} style={{
+            background: 'rgba(255,255,255,0.1)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            color: '#e2e8f0',
+            borderRadius: '8px', padding: '6px 14px', cursor: 'pointer',
+            fontSize: '0.8rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px',
+            marginRight: '8px'
+          }}>
+            <Navigation size={14} /> Vista: {mapTheme === 'dark' ? 'Táctica' : 'Normal'}
+          </button>
+
           <button onClick={locateMe} disabled={locating} style={{
             background: userPos ? 'rgba(34,197,94,0.2)' : 'rgba(59,130,246,0.2)',
             border: userPos ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(59,130,246,0.3)',
@@ -204,13 +245,44 @@ export default function Mapa() {
             Cargando mapa...
           </div>
         ) : (
-          <div style={{ flex: 1 }}>
-            <MapContainer center={userPos ? [userPos.lat, userPos.lng] : defaultCenter} zoom={userPos ? 12 : 7} style={{ height: '100%', width: '100%' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <MapContainer center={userPos ? [userPos.lat, userPos.lng] : defaultCenter} zoom={userPos ? 12 : 6} style={{ height: '100%', width: '100%', background: mapTheme === 'dark' ? '#0f172a' : '#f8fafc' }}>
               <TileLayer
-                attribution='&copy; OpenStreetMap'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution={mapTheme === 'dark' ? '&copy; <a href="https://carto.com/attributions">CARTO</a>' : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}
+                url={mapTheme === 'dark' ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"}
               />
               {flyTarget && <FlyTo center={flyTarget} zoom={14} />}
+              
+              {/* Zonas de Desastre */}
+              {zonas.map(zona => {
+                const coords = ZONAS_COORDS[zona.nombre];
+                if (!coords) return null;
+                const color = getColorByNivel(zona.nivel_afectacion);
+                return (
+                  <Circle
+                    key={`zona-${zona.id}`}
+                    center={[coords.lat, coords.lng]}
+                    radius={coords.radius}
+                    pathOptions={{
+                      color: color,
+                      fillColor: color,
+                      fillOpacity: 0.15,
+                      weight: 2,
+                      dashArray: '5, 5'
+                    }}
+                  >
+                    <Tooltip sticky className="dark-tooltip">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <AlertTriangle size={14} color={color} />
+                        <strong>{zona.nombre}</strong>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', marginTop: '2px', textTransform: 'capitalize' }}>
+                        Afectación: {zona.nivel_afectacion}
+                      </div>
+                    </Tooltip>
+                  </Circle>
+                );
+              })}
               
               {/* User location */}
               {userPos && (

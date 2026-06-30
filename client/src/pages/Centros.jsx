@@ -732,7 +732,7 @@ export default function Centros() {
     <div>
       {/* Hero header */}
       <div style={{
-        background: 'linear-gradient(135deg, rgba(239,68,68,0.1) 0%, rgba(234,88,12,0.08) 100%)',
+        background: 'linear-gradient(90deg, rgba(250,204,21,0.15) 0%, rgba(250,204,21,0.05) 25%, rgba(37,99,235,0.1) 40%, rgba(37,99,235,0.1) 60%, rgba(220,38,38,0.05) 75%, rgba(220,38,38,0.15) 100%)',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
         padding: '2rem 0',
       }}>
