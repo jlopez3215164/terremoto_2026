@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { fetchWithAuth, API_URL } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -8,8 +8,10 @@ import MapPicker from '../components/MapPicker';
 import DesaparecidosSlider from '../components/DesaparecidosSlider';
 import { 
   MapPin, Phone, User, Package, Heart, ChevronDown, ChevronUp, 
-  Search, Send, X, AlertCircle, CheckCircle2, Building2, Clock, Edit, Plus, Trash2, PlusCircle
+  Search, Send, X, AlertCircle, CheckCircle2, Building2, Clock, Edit, Plus, Trash2, PlusCircle, Image as ImageIcon
 } from 'lucide-react';
+
+const BASE_URL = API_URL.replace('/api', '');
 
 // Helper: parse tipos_ayuda from DB (supports legacy CSV and new JSON format)
 function parseNeeds(raw) {
@@ -289,8 +291,11 @@ function AdminCentroModal({ centro, onClose, onSuccess }) {
            : { nombre: '', direccion: '', zona_id: '', contacto: '', telefono: '', descripcion: '', latitud: '', longitud: '' }
   );
   const [needs, setNeeds] = useState(initialNeeds.length > 0 ? initialNeeds : [{ insumo: '', cantidad: '' }]);
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(centro?.logo_url ? `${BASE_URL}${centro.logo_url}` : null);
   const [submitting, setSubmitting] = useState(false);
   const [zonas, setZonas] = useState([]);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchWithAuth('/zonas').then(setZonas).catch(console.error);
@@ -304,14 +309,33 @@ function AdminCentroModal({ centro, onClose, onSuccess }) {
     setNeeds(updated);
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     try {
+      const form = new FormData();
+      Object.keys(formData).forEach(k => {
+        if (formData[k]) form.append(k, formData[k]);
+      });
+      form.append('tipos_ayuda', serializeNeeds(needs));
+      if (logoFile) form.append('logo', logoFile);
+
       const path = centro ? `/centros/${centro.id}` : '/centros';
       await fetchWithAuth(path, {
         method: centro ? 'PUT' : 'POST',
-        body: JSON.stringify({ ...formData, tipos_ayuda: serializeNeeds(needs) })
+        body: form
       });
       onSuccess();
       onClose();
@@ -354,15 +378,43 @@ function AdminCentroModal({ centro, onClose, onSuccess }) {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div className="form-group">
-              <label style={labelStyle}>Nombre *</label>
-              <input type="text" required className="input-field" value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} />
+          
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+            {/* Image Upload Box */}
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                width: '120px', height: '120px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)',
+                border: '2px dashed rgba(255,255,255,0.2)', display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', flexShrink: 0
+              }}
+            >
+              {logoPreview ? (
+                <img src={logoPreview} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <>
+                  <ImageIcon size={28} style={{ color: '#94a3b8', marginBottom: '8px' }} />
+                  <span style={{ fontSize: '0.7rem', color: '#94a3b8', textAlign: 'center', padding: '0 4px' }}>Añadir Logo (opcional)</span>
+                </>
+              )}
+              <input 
+                type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} 
+                style={{ display: 'none' }} 
+              />
             </div>
-            <div className="form-group">
-              <label style={labelStyle}>Dirección *</label>
-              <input type="text" required className="input-field" value={formData.direccion} onChange={e => setFormData({...formData, direccion: e.target.value})} />
+            
+            {/* Title / Addr */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="form-group">
+                <label style={labelStyle}>Nombre del Centro *</label>
+                <input type="text" required className="input-field" value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} style={{ width: '100%', fontSize: '1.1rem', padding: '12px' }} placeholder="Ej: Centro de Acopio Principal" />
+              </div>
             </div>
+          </div>
+
+          <div className="form-group">
+            <label style={labelStyle}>Dirección Exacta *</label>
+            <textarea required className="input-field" rows="2" value={formData.direccion} onChange={e => setFormData({...formData, direccion: e.target.value})} style={{ width: '100%', resize: 'vertical' }} placeholder="Calle, Avenida, Sector, Puntos de referencia..." />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -497,8 +549,16 @@ function CentroCard({ centro, onDonate, isAdmin, onEdit, onDelete }) {
       transition: 'all 0.2s ease',
       position: 'relative', overflow: 'hidden',
     }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', gap: '8px' }}>
+      {/* Logo Header (if present) */}
+      {centro.logo_url && (
+        <div style={{ width: '100%', height: '140px', background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'relative' }}>
+          <img src={`${BASE_URL}${centro.logo_url}`} alt={centro.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0) 40%, rgba(15,23,42,1) 100%)' }} />
+        </div>
+      )}
+
+      {/* Content Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', gap: '8px', padding: centro.logo_url ? '0 1rem 0' : '0', marginTop: centro.logo_url ? '-20px' : '0', zIndex: 2 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h3 style={{ fontSize: '1.15rem', color: 'white', margin: '0 0 8px 0', lineHeight: 1.3 }}>
             {centro.nombre}
@@ -535,7 +595,7 @@ function CentroCard({ centro, onDonate, isAdmin, onEdit, onDelete }) {
       </div>
 
       {/* Location & Contact */}
-      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem' }}>
+      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem', padding: centro.logo_url ? '0 1rem' : '0' }}>
         <p style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
           <MapPin size={15} style={{ flexShrink: 0, marginTop: '2px', color: '#60a5fa' }} /> 
           <span>{centro.direccion}</span>
@@ -559,7 +619,7 @@ function CentroCard({ centro, onDonate, isAdmin, onEdit, onDelete }) {
       </div>
 
       {centro.zona_nombre && (
-        <div style={{ marginBottom: '1rem' }}>
+        <div style={{ marginBottom: '1rem', padding: centro.logo_url ? '0 1rem' : '0' }}>
           <span className="badge badge-info">{centro.zona_nombre}</span>
         </div>
       )}
@@ -568,7 +628,7 @@ function CentroCard({ centro, onDonate, isAdmin, onEdit, onDelete }) {
       {hasNeeds && (
         <div style={{
           background: 'rgba(0,0,0,0.25)', padding: '14px', borderRadius: '10px',
-          marginBottom: '1rem', border: '1px solid rgba(255,255,255,0.06)',
+          margin: centro.logo_url ? '0 1rem 1rem' : '0 0 1rem', border: '1px solid rgba(255,255,255,0.06)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
             <span style={{
@@ -595,7 +655,7 @@ function CentroCard({ centro, onDonate, isAdmin, onEdit, onDelete }) {
       )}
 
       {/* Donate button */}
-      <div style={{ marginTop: 'auto' }}>
+      <div style={{ marginTop: 'auto', padding: centro.logo_url ? '0 1rem 1rem' : '0' }}>
         <button onClick={() => onDonate(centro)} className="btn btn-primary" style={{
           width: '100%', padding: '10px', fontSize: '0.9rem', fontWeight: '700',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',

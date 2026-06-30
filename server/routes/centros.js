@@ -1,10 +1,31 @@
 const express = require('express');
 const pool = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const multer = require('multer');
+const path = require('path');
 
 const router = express.Router();
 
-// Listar centros de donación (opcionalmente filtrado por zona)
+// Configuración de Multer para logos de centros
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'public/uploads/centros');
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // Limite de 5MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Solo se permiten imágenes'));
+  }
+});
+
+// Listar centros de donación
 router.get('/', async (req, res) => {
   try {
     const { zona_id } = req.query;
@@ -33,13 +54,18 @@ router.get('/', async (req, res) => {
 });
 
 // Crear centro de donación
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authMiddleware, upload.single('logo'), async (req, res) => {
   try {
     const { 
       nombre, direccion, zona_id, latitud, longitud, 
       contacto, telefono, descripcion, tipos_ayuda 
     } = req.body;
     const usuario_id = req.user.id;
+    
+    let logo_url = null;
+    if (req.file) {
+      logo_url = `/uploads/centros/${req.file.filename}`;
+    }
 
     if (!nombre || !direccion) {
       return res.status(400).json({ error: 'Nombre y dirección son requeridos' });
@@ -47,16 +73,17 @@ router.post('/', authMiddleware, async (req, res) => {
 
     const [result] = await pool.query(
       `INSERT INTO centros_donacion 
-       (nombre, direccion, zona_id, latitud, longitud, contacto, telefono, descripcion, tipos_ayuda, usuario_id) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (nombre, direccion, zona_id, latitud, longitud, contacto, telefono, descripcion, tipos_ayuda, logo_url, usuario_id) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         nombre, direccion, zona_id || null, latitud || null, longitud || null, 
-        contacto || '', telefono || '', descripcion || '', tipos_ayuda || '', usuario_id
+        contacto || '', telefono || '', descripcion || '', tipos_ayuda || '', logo_url, usuario_id
       ]
     );
 
     res.status(201).json({
       id: result.insertId,
+      logo_url,
       message: 'Centro de donación registrado exitosamente'
     });
   } catch (error) {
@@ -66,7 +93,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // Actualizar centro de donación
-router.put('/:id', authMiddleware, async (req, res) => {
+router.put('/:id', authMiddleware, upload.single('logo'), async (req, res) => {
   try {
     const { id } = req.params;
     const { 
@@ -81,24 +108,33 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (!nombre || !direccion) {
       return res.status(400).json({ error: 'Nombre y dirección son requeridos' });
     }
+    
+    // Si se subió un logo nuevo, actualizar logo_url, si no, mantener el anterior
+    let logo_url = null;
+    let queryArgs = [
+      nombre, direccion, zona_id || null, latitud || null, longitud || null, 
+      contacto || '', telefono || '', descripcion || '', tipos_ayuda || ''
+    ];
+    let queryStr = `UPDATE centros_donacion SET 
+      nombre = ?, direccion = ?, zona_id = ?, latitud = ?, longitud = ?, 
+      contacto = ?, telefono = ?, descripcion = ?, tipos_ayuda = ?`;
+      
+    if (req.file) {
+      logo_url = `/uploads/centros/${req.file.filename}`;
+      queryStr += `, logo_url = ?`;
+      queryArgs.push(logo_url);
+    }
+    
+    queryStr += ` WHERE id = ?`;
+    queryArgs.push(id);
 
-    const [result] = await pool.query(
-      `UPDATE centros_donacion SET 
-       nombre = ?, direccion = ?, zona_id = ?, latitud = ?, longitud = ?, 
-       contacto = ?, telefono = ?, descripcion = ?, tipos_ayuda = ? 
-       WHERE id = ?`,
-      [
-        nombre, direccion, zona_id || null, latitud || null, longitud || null, 
-        contacto || '', telefono || '', descripcion || '', tipos_ayuda || '',
-        id
-      ]
-    );
+    const [result] = await pool.query(queryStr, queryArgs);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Centro no encontrado' });
     }
 
-    res.json({ message: 'Centro actualizado correctamente' });
+    res.json({ message: 'Centro actualizado correctamente', logo_url });
   } catch (error) {
     console.error('Error al actualizar centro:', error);
     res.status(500).json({ error: 'Error interno del servidor' });

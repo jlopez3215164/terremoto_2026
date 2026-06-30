@@ -13,8 +13,8 @@ export default function Navbar() {
       <div className="nav-brand">
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
           <Activity color="var(--primary)" size={28} />
-          <h1 style={{ fontSize: '1.25rem', fontWeight: '800', color: 'white', margin: 0 }}>
-            Ayuda<span style={{ color: 'var(--primary)' }}>2026</span>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: '800', color: 'white', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            Ayuda<span style={{ color: 'var(--primary)' }}>2026</span> <span style={{ fontSize: '1.4rem' }}>🇻🇪</span>
           </h1>
         </Link>
       </div>
