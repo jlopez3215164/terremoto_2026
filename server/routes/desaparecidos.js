@@ -1,8 +1,29 @@
 const express = require('express');
 const pool = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const multer = require('multer');
+const path = require('path');
 
 const router = express.Router();
+
+// Configuración de Multer para subir imágenes
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'public/uploads/desaparecidos');
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // Limite de 5MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Solo se permiten imágenes'));
+  }
+});
 
 // Listar desaparecidos (con filtros)
 router.get('/', async (req, res) => {
@@ -43,13 +64,18 @@ router.get('/', async (req, res) => {
 });
 
 // Registrar persona desaparecida
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', authMiddleware, upload.single('foto'), async (req, res) => {
   try {
     const { 
       nombre_completo, edad, genero, descripcion_fisica, 
       ultima_ubicacion, zona_id, contacto_familiar, telefono_contacto, fecha_desaparicion 
     } = req.body;
     const usuario_id = req.user.id;
+    
+    let foto_url = null;
+    if (req.file) {
+      foto_url = `/uploads/desaparecidos/${req.file.filename}`;
+    }
 
     if (!nombre_completo || !zona_id) {
       return res.status(400).json({ error: 'Nombre y zona son requeridos' });
@@ -58,17 +84,18 @@ router.post('/', authMiddleware, async (req, res) => {
     const [result] = await pool.query(
       `INSERT INTO desaparecidos 
        (nombre_completo, edad, genero, descripcion_fisica, ultima_ubicacion, zona_id, 
-        contacto_familiar, telefono_contacto, fecha_desaparicion, usuario_id) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        contacto_familiar, telefono_contacto, fecha_desaparicion, foto_url, usuario_id) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         nombre_completo, edad || null, genero || 'otro', descripcion_fisica || '', 
         ultima_ubicacion || '', zona_id, contacto_familiar || '', telefono_contacto || '', 
-        fecha_desaparicion || null, usuario_id
+        fecha_desaparicion || null, foto_url, usuario_id
       ]
     );
 
     res.status(201).json({
       id: result.insertId,
+      foto_url,
       message: 'Reporte registrado exitosamente'
     });
   } catch (error) {

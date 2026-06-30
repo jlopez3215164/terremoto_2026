@@ -3,10 +3,11 @@ export const API_URL = 'http://localhost:3001/api';
 export async function fetchWithAuth(url, options = {}) {
   const token = localStorage.getItem('token');
   
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
+  const headers = { ...options.headers };
+  
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import ZonaFilter from '../components/ZonaFilter';
 import CustomSelect from '../components/CustomSelect';
 import MapPicker from '../components/MapPicker';
+import DesaparecidosSlider from '../components/DesaparecidosSlider';
 import { 
   MapPin, Phone, User, Package, Heart, ChevronDown, ChevronUp, 
   Search, Send, X, AlertCircle, CheckCircle2, Building2, Clock, Edit, Plus, Trash2, PlusCircle
@@ -672,6 +673,9 @@ export default function Centros() {
           )}
         </div>
       </div>
+
+      {/* Desaparecidos Ticker */}
+      <DesaparecidosSlider />
 
       {/* Filters bar */}
       <div style={{
