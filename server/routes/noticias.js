@@ -23,21 +23,40 @@ const upload = multer({
   }
 });
 
-// Obtener todas las noticias
+// Obtener todas las noticias (con paginación)
 router.get('/', async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    // Count total records
+    const [countResult] = await pool.query('SELECT COUNT(*) as total FROM noticias');
+    const total = countResult[0].total;
+
+    // Fetch paginated records
     const [noticias] = await pool.query(
       `SELECT n.id, n.titulo, n.resumen, n.imagenes, n.created_at, u.nombre as autor
        FROM noticias n
        JOIN usuarios u ON n.autor_id = u.id
-       ORDER BY n.created_at DESC`
+       ORDER BY n.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [limit, offset]
     );
+
     // Parsear imagenes si vienen como string JSON
     const noticiasParsed = noticias.map(n => ({
       ...n,
       imagenes: typeof n.imagenes === 'string' ? JSON.parse(n.imagenes) : (n.imagenes || [])
     }));
-    res.json(noticiasParsed);
+
+    res.json({
+      data: noticiasParsed,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    });
   } catch (error) {
     console.error('Error al obtener noticias:', error);
     res.status(500).json({ error: 'Error interno del servidor' });

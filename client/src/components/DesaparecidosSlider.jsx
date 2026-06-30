@@ -10,7 +10,11 @@ export default function DesaparecidosSlider() {
 
   useEffect(() => {
     fetchWithAuth('/desaparecidos?estado=desaparecido')
-      .then(data => setDesaparecidos(data))
+      .then(res => {
+        // Handle both paginated response object and raw array
+        const data = res.data ? res.data : (Array.isArray(res) ? res : []);
+        setDesaparecidos(data);
+      })
       .catch(err => console.error(err));
   }, []);
 

@@ -8,32 +8,49 @@ const BASE_URL = API_URL.replace('/api', '');
 export default function Noticias() {
   const [noticias, setNoticias] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [lightbox, setLightbox] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   
   const { user } = useAuth();
   const isAdmin = user && user.rol === 'admin';
 
-  const fetchNoticias = async () => {
+  const fetchNoticias = async (pageNum = 1, replace = false) => {
+    if (pageNum === 1) setLoading(true);
+    else setLoadingMore(true);
+
     try {
-      const data = await fetchWithAuth('/noticias');
-      setNoticias(data);
+      const res = await fetchWithAuth(`/noticias?page=${pageNum}&limit=10`);
+      const newData = Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
+      
+      setNoticias(prev => replace ? newData : [...prev, ...newData]);
+      if (res.totalPages) setTotalPages(res.totalPages);
+      setPage(pageNum);
     } catch (error) {
       console.error('Error al cargar noticias:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   useEffect(() => {
-    fetchNoticias();
+    fetchNoticias(1, true);
   }, []);
+
+  const handleLoadMore = () => {
+    if (page < totalPages) {
+      fetchNoticias(page + 1, false);
+    }
+  };
 
   const handleDelete = async (id) => {
     if (!window.confirm('¿Estás seguro de eliminar esta noticia?')) return;
     try {
       await fetchWithAuth(`/noticias/${id}`, { method: 'DELETE' });
-      fetchNoticias();
+      fetchNoticias(1, true);
     } catch (error) {
       console.error('Delete error:', error);
       alert('Error al eliminar la noticia: ' + error.message);
@@ -228,6 +245,19 @@ export default function Noticias() {
               </div>
             </div>
           ))}
+          
+          {page < totalPages && (
+            <div style={{ textAlign: 'center', marginTop: '3rem', paddingBottom: '1rem' }}>
+              <button onClick={handleLoadMore} disabled={loadingMore} style={{
+                padding: '12px 24px', fontSize: '0.95rem', fontWeight: '700',
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                color: 'white', borderRadius: '20px', cursor: 'pointer',
+                transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: '8px'
+              }}>
+                {loadingMore ? 'Cargando...' : 'Cargar noticias anteriores'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
