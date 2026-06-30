@@ -9,6 +9,7 @@ import Donaciones from './pages/Donaciones';
 import Desaparecidos from './pages/Desaparecidos';
 import Mapa from './pages/Mapa';
 import MisCentros from './pages/MisCentros';
+import AudioPlayer from './components/AudioPlayer';
 
 // Rutas protegidas
 const ProtectedRoute = ({ children }) => {
@@ -24,6 +25,7 @@ function AppRoutes() {
   return (
     <>
       <Navbar />
+      <AudioPlayer />
       <div className="animate-fade-in">
         <Routes>
           <Route path="/" element={<Home />} />
