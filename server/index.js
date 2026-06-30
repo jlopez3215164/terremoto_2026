@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 // Rutas
 const authRoutes = require('./routes/auth');
@@ -23,9 +24,12 @@ app.use('/api/centros', centrosRoutes);
 app.use('/api/donaciones', donacionesRoutes);
 app.use('/api/desaparecidos', desaparecidosRoutes);
 
-// Ruta base
-app.get('/', (req, res) => {
-  res.json({ message: 'API Terremoto 2026 - Funcionando correctamente' });
+// Servir el frontend de React (sitio estático en producción)
+app.use(express.static(path.join(__dirname, '../client/dist')));
+
+// Ruta catch-all para que React Router maneje las rutas del frontend
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
 });
 
 // Manejo de errores global
