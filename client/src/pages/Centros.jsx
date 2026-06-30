@@ -4,6 +4,7 @@ import { fetchWithAuth, API_URL } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import ZonaFilter from '../components/ZonaFilter';
 import CustomSelect from '../components/CustomSelect';
+import MapPicker from '../components/MapPicker';
 import { 
   MapPin, Phone, User, Package, Heart, ChevronDown, ChevronUp, 
   Search, Send, X, AlertCircle, CheckCircle2, Building2, Clock, Edit, Plus, Trash2, PlusCircle
@@ -283,8 +284,8 @@ function DonationModal({ centro, onClose, onSuccess }) {
 function AdminCentroModal({ centro, onClose, onSuccess }) {
   const initialNeeds = centro ? parseNeeds(centro.tipos_ayuda) : [];
   const [formData, setFormData] = useState(
-    centro ? { nombre: centro.nombre, direccion: centro.direccion, zona_id: centro.zona_id, contacto: centro.contacto, telefono: centro.telefono, descripcion: centro.descripcion || '' } 
-           : { nombre: '', direccion: '', zona_id: '', contacto: '', telefono: '', descripcion: '' }
+    centro ? { nombre: centro.nombre, direccion: centro.direccion, zona_id: centro.zona_id, contacto: centro.contacto, telefono: centro.telefono, descripcion: centro.descripcion || '', latitud: centro.latitud || '', longitud: centro.longitud || '' } 
+           : { nombre: '', direccion: '', zona_id: '', contacto: '', telefono: '', descripcion: '', latitud: '', longitud: '' }
   );
   const [needs, setNeeds] = useState(initialNeeds.length > 0 ? initialNeeds : [{ insumo: '', cantidad: '' }]);
   const [submitting, setSubmitting] = useState(false);
@@ -383,6 +384,29 @@ function AdminCentroModal({ centro, onClose, onSuccess }) {
               <label style={labelStyle}>Teléfono</label>
               <input type="text" className="input-field" value={formData.telefono} onChange={e => setFormData({...formData, telefono: e.target.value})} />
             </div>
+          </div>
+
+          {/* Map Picker */}
+          <div style={{
+            background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '1rem',
+            border: '1px solid rgba(255,255,255,0.06)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <label style={{ ...labelStyle, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <MapPin size={14} style={{ color: '#60a5fa' }} /> Ubicación en el Mapa
+              </label>
+              {formData.latitud && formData.longitud && (
+                <span style={{ fontSize: '0.7rem', color: '#4ade80', fontWeight: '600' }}>
+                  ✓ {parseFloat(formData.latitud).toFixed(5)}, {parseFloat(formData.longitud).toFixed(5)}
+                </span>
+              )}
+            </div>
+            <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 10px 0' }}>Haz clic en el mapa para seleccionar la ubicación del centro.</p>
+            <MapPicker 
+              lat={formData.latitud} 
+              lng={formData.longitud} 
+              onLocationSelect={(lat, lng) => setFormData({...formData, latitud: lat, longitud: lng})}
+            />
           </div>
 
           {/* Dynamic Needs List */}
