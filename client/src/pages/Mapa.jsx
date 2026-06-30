@@ -78,6 +78,7 @@ export default function Mapa() {
   const [sortByDistance, setSortByDistance] = useState(false);
   const [flyTarget, setFlyTarget] = useState(null);
   const [mapTheme, setMapTheme] = useState('dark');
+  const markerRefs = useRef({});
 
   useEffect(() => {
     Promise.all([
@@ -193,7 +194,13 @@ export default function Mapa() {
           {sorted.map(centro => {
             const needs = parseNeeds(centro.tipos_ayuda);
             return (
-              <button key={centro.id} onClick={() => setFlyTarget([parseFloat(centro.latitud), parseFloat(centro.longitud)])}
+              <button key={centro.id} onClick={() => {
+                  setFlyTarget([parseFloat(centro.latitud), parseFloat(centro.longitud)]);
+                  setTimeout(() => {
+                    const marker = markerRefs.current[centro.id];
+                    if (marker) marker.openPopup();
+                  }, 200);
+                }}
                 style={{
                   display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
                   background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
@@ -298,7 +305,11 @@ export default function Mapa() {
               {sorted.map(centro => {
                 const needs = parseNeeds(centro.tipos_ayuda);
                 return (
-                  <Marker key={centro.id} position={[parseFloat(centro.latitud), parseFloat(centro.longitud)]}>
+                  <Marker 
+                    key={centro.id} 
+                    position={[parseFloat(centro.latitud), parseFloat(centro.longitud)]}
+                    ref={(r) => markerRefs.current[centro.id] = r}
+                  >
                     <Popup maxWidth={320} minWidth={280}>
                       <div style={{ fontFamily: 'Inter, system-ui, sans-serif', color: '#1e293b' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
