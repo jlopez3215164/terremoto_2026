@@ -239,7 +239,7 @@ export default function Noticias() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'zoom-out', padding: '2rem',
         }}>
-          <img src={`${BASE_URL}${lightbox}`} alt="Ampliada" style={{
+          <img src={lightbox.startsWith('http') ? lightbox : `${BASE_URL}${lightbox}`} alt="Ampliada" style={{
             maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain',
             borderRadius: '12px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
           }} />
@@ -298,7 +298,7 @@ function ImageCarousel({ images, onImageClick }) {
       <div style={{ position: 'relative', overflow: 'hidden', maxHeight: '360px', cursor: 'pointer' }}
         onClick={() => onImageClick(images[0])}
       >
-        <img src={`${BASE_URL}${images[0]}`} alt="" style={{
+        <img src={images[0].startsWith('http') ? images[0] : `${BASE_URL}${images[0]}`} alt="" style={{
           width: '100%', height: '360px', objectFit: 'cover', display: 'block',
           transition: 'transform 0.3s ease',
         }}
@@ -320,7 +320,7 @@ function ImageCarousel({ images, onImageClick }) {
         scrollbarWidth: 'none', scrollSnapType: 'x mandatory',
       }}>
         {images.map((img, i) => (
-          <img key={i} src={`${BASE_URL}${img}`} alt={`Imagen ${i+1}`}
+          <img key={i} src={img.startsWith('http') ? img : `${BASE_URL}${img}`} alt={`Imagen ${i+1}`}
             onClick={() => onImageClick(img)}
             style={{
               height: '240px', minWidth: '320px', objectFit: 'cover',
