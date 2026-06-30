@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { fetchWithAuth, API_URL } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import ZonaFilter from '../components/ZonaFilter';
@@ -527,9 +528,15 @@ export default function Desaparecidos() {
         </>
       )}
 
-      {/* Modals */}
-      {showReport && <ReportModal onClose={() => setShowReport(false)} onSuccess={() => fetchData(1, true)} />}
-      {foundTarget && <FoundModal persona={foundTarget} onClose={() => setFoundTarget(null)} onSuccess={() => fetchData(1, true)} />}
+      {/* Modals — rendered via portal to escape CSS stacking contexts */}
+      {showReport && createPortal(
+        <ReportModal onClose={() => setShowReport(false)} onSuccess={() => fetchData(1, true)} />,
+        document.body
+      )}
+      {foundTarget && createPortal(
+        <FoundModal persona={foundTarget} onClose={() => setFoundTarget(null)} onSuccess={() => fetchData(1, true)} />,
+        document.body
+      )}
     </div>
   );
 }
