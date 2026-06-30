@@ -313,36 +313,54 @@ export default function Desaparecidos() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [foundTarget, setFoundTarget] = useState(null);
-  const { user } = useAuth();
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  useEffect(() => { fetchAll(); }, [zonaId, filterEstado]);
+  // Effect to load initial or when filters change (resets to page 1)
+  useEffect(() => {
+    fetchData(1, true);
+  }, [zonaId, filterEstado, searchTerm]);
 
-  const fetchAll = async () => {
-    setLoading(true);
+  const fetchData = async (pageNum = 1, replace = false) => {
+    if (pageNum === 1) setLoading(true);
+    else setLoadingMore(true);
+
     try {
-      let url = `${API_URL}/desaparecidos?`;
-      if (zonaId) url += `zona_id=${zonaId}&`;
-      if (filterEstado) url += `estado=${filterEstado}&`;
+      let url = `${API_URL}/desaparecidos?page=${pageNum}&limit=50`;
+      if (zonaId) url += `&zona_id=${zonaId}`;
+      if (filterEstado) url += `&estado=${filterEstado}`;
+      if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`;
+      
       const res = await fetch(url);
-      const data = await res.json();
-      setDesaparecidos(Array.isArray(data) ? data : []);
+      const resJson = await res.json();
+      const newData = Array.isArray(resJson.data) ? resJson.data : [];
+      
+      setDesaparecidos(prev => replace ? newData : [...prev, ...newData]);
+      setTotalPages(resJson.totalPages || 1);
+      setPage(pageNum);
 
-      const sRes = await fetch(`${API_URL}/desaparecidos/stats`);
-      const sData = await sRes.json();
-      setStats(sData);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+      // Fetch stats only on first load/search change
+      if (replace) {
+        const sRes = await fetch(`${API_URL}/desaparecidos/stats`);
+        const sData = await sRes.json();
+        setStats(sData);
+      }
+    } catch (e) { 
+      console.error(e); 
+    } finally { 
+      setLoading(false);
+      setLoadingMore(false);
+    }
   };
 
-  const filtered = desaparecidos.filter(p => {
-    if (!searchTerm) return true;
-    const t = searchTerm.toLowerCase();
-    return (p.nombre_completo || '').toLowerCase().includes(t) ||
-           (p.ultima_ubicacion || '').toLowerCase().includes(t) ||
-           (p.contacto_familiar || '').toLowerCase().includes(t);
-  });
+  const handleLoadMore = () => {
+    if (page < totalPages) {
+      fetchData(page + 1, false);
+    }
+  };
 
   return (
     <div className="container" style={{ paddingBottom: '3rem' }}>
@@ -392,7 +410,8 @@ export default function Desaparecidos() {
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
           <div style={{ position: 'relative' }}>
             <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
-            <input type="text" className="input-field" placeholder="Buscar por nombre o lugar…" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+            <input type="text" className="input-field" placeholder="Buscar en BD..." value={searchTerm} 
+              onChange={e => setSearchTerm(e.target.value)}
               style={{ paddingLeft: '34px', width: '220px', fontSize: '0.85rem' }} />
           </div>
           <ZonaFilter value={zonaId} onChange={setZonaId} />
@@ -403,9 +422,9 @@ export default function Desaparecidos() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
           <div className="spin" style={{ display: 'inline-block', marginBottom: '1rem' }}><AlertTriangle size={32} /></div>
-          <p>Cargando registros...</p>
+          <p>Buscando en {stats.total || 43000}+ registros...</p>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : desaparecidos.length === 0 ? (
         <div className="glass-panel" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
           <User size={48} style={{ color: '#475569', marginBottom: '1rem' }} />
           <h3 style={{ margin: '0 0 0.5rem', color: 'white' }}>No hay resultados</h3>
@@ -419,83 +438,98 @@ export default function Desaparecidos() {
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
-          {filtered.map(p => (
-            <div key={p.id} style={{
-              background: 'rgba(30,41,59,0.7)', backdropFilter: 'blur(16px)',
-              borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)',
-              overflow: 'hidden', display: 'flex', flexDirection: 'column',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.2)', position: 'relative'
-            }}>
-              {/* Image */}
-              {p.foto_url ? (
-                <div style={{ width: '100%', height: '200px', position: 'relative' }}>
-                  <img src={p.foto_url.startsWith('http') ? p.foto_url : `${BASE_URL}${p.foto_url}`} alt={p.nombre_completo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0) 50%, rgba(15,23,42,1) 100%)' }} />
-                  <div style={{ position: 'absolute', top: '10px', right: '10px' }}><StatusBadge estado={p.estado} rescatado={p.rescatado} /></div>
-                </div>
-              ) : (
-                <div style={{ width: '100%', height: '100px', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'relative' }}>
-                  <User size={40} style={{ color: 'rgba(255,255,255,0.08)' }} />
-                  <div style={{ position: 'absolute', top: '10px', right: '10px' }}><StatusBadge estado={p.estado} rescatado={p.rescatado} /></div>
-                </div>
-              )}
-
-              {/* Content */}
-              <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flex: 1, marginTop: p.foto_url ? '-40px' : 0, zIndex: 2 }}>
-                <h3 style={{ fontSize: '1.15rem', margin: '0 0 10px', color: 'white', fontWeight: '800' }}>{p.nombre_completo}</h3>
-
-                <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                  {p.edad && <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#94a3b8', fontSize: '0.82rem' }}><Calendar size={13} style={{ color: '#60a5fa' }} /> {p.edad} años</span>}
-                  {p.genero && p.genero !== 'otro' && <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#94a3b8', fontSize: '0.82rem' }}><User size={13} style={{ color: '#a78bfa' }} /> {p.genero}</span>}
-                </div>
-
-                {p.ultima_ubicacion && (
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', color: '#cbd5e1', fontSize: '0.85rem', marginBottom: '10px' }}>
-                    <MapPin size={14} style={{ marginTop: '2px', color: '#f59e0b', flexShrink: 0 }} />
-                    <span><strong>Últ. vez visto:</strong> {p.ultima_ubicacion} {p.zona_nombre && `(${p.zona_nombre})`}</span>
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+            {desaparecidos.map(p => (
+              <div key={p.id} style={{
+                background: 'rgba(30,41,59,0.7)', backdropFilter: 'blur(16px)',
+                borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)',
+                overflow: 'hidden', display: 'flex', flexDirection: 'column',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.2)', position: 'relative'
+              }}>
+                {/* Image */}
+                {p.foto_url ? (
+                  <div style={{ width: '100%', height: '200px', position: 'relative' }}>
+                    <img src={p.foto_url.startsWith('http') ? p.foto_url : `${BASE_URL}${p.foto_url}`} alt={p.nombre_completo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0) 50%, rgba(15,23,42,1) 100%)' }} />
+                    <div style={{ position: 'absolute', top: '10px', right: '10px' }}><StatusBadge estado={p.estado} rescatado={p.rescatado} /></div>
+                  </div>
+                ) : (
+                  <div style={{ width: '100%', height: '100px', background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'relative' }}>
+                    <User size={40} style={{ color: 'rgba(255,255,255,0.08)' }} />
+                    <div style={{ position: 'absolute', top: '10px', right: '10px' }}><StatusBadge estado={p.estado} rescatado={p.rescatado} /></div>
                   </div>
                 )}
 
-                {p.descripcion_fisica && (
-                  <p style={{ margin: '0 0 12px', fontSize: '0.82rem', color: '#94a3b8', lineHeight: 1.5, background: 'rgba(0,0,0,0.2)', padding: '8px 10px', borderRadius: '8px' }}>
-                    {p.descripcion_fisica}
-                  </p>
-                )}
+                {/* Content */}
+                <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flex: 1, marginTop: p.foto_url ? '-40px' : 0, zIndex: 2 }}>
+                  <h3 style={{ fontSize: '1.15rem', margin: '0 0 10px', color: 'white', fontWeight: '800' }}>{p.nombre_completo}</h3>
 
-                {/* Contact */}
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px', marginTop: 'auto' }}>
-                  {(p.contacto_familiar || p.telefono_contacto) && (
-                    <div style={{ fontSize: '0.82rem', color: '#cbd5e1', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span>{p.contacto_familiar || 'Familiar no especificado'}</span>
-                      {p.telefono_contacto && <a href={`tel:${p.telefono_contacto}`} style={{ color: '#4ade80', textDecoration: 'none', fontWeight: '600' }}>{p.telefono_contacto}</a>}
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                    {p.edad && <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#94a3b8', fontSize: '0.82rem' }}><Calendar size={13} style={{ color: '#60a5fa' }} /> {p.edad} años</span>}
+                    {p.genero && p.genero !== 'otro' && <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#94a3b8', fontSize: '0.82rem' }}><User size={13} style={{ color: '#a78bfa' }} /> {p.genero}</span>}
+                  </div>
+
+                  {p.ultima_ubicacion && (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', color: '#cbd5e1', fontSize: '0.85rem', marginBottom: '10px' }}>
+                      <MapPin size={14} style={{ marginTop: '2px', color: '#f59e0b', flexShrink: 0 }} />
+                      <span><strong>Últ. vez visto:</strong> {p.ultima_ubicacion} {p.zona_nombre && `(${p.zona_nombre})`}</span>
                     </div>
                   )}
-                  {p.reportado_por && (
-                    <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Reportado por: {p.reportado_por}</span>
+
+                  {p.descripcion_fisica && (
+                    <p style={{ margin: '0 0 12px', fontSize: '0.82rem', color: '#94a3b8', lineHeight: 1.5, background: 'rgba(0,0,0,0.2)', padding: '8px 10px', borderRadius: '8px' }}>
+                      {p.descripcion_fisica}
+                    </p>
+                  )}
+
+                  {/* Contact */}
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px', marginTop: 'auto' }}>
+                    {(p.contacto_familiar || p.telefono_contacto) && (
+                      <div style={{ fontSize: '0.82rem', color: '#cbd5e1', display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span>{p.contacto_familiar || 'Familiar no especificado'}</span>
+                        {p.telefono_contacto && <a href={`tel:${p.telefono_contacto}`} style={{ color: '#4ade80', textDecoration: 'none', fontWeight: '600' }}>{p.telefono_contacto}</a>}
+                      </div>
+                    )}
+                    {p.reportado_por && (
+                      <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Reportado por: {p.reportado_por}</span>
+                    )}
+                  </div>
+
+                  {/* Found button */}
+                  {p.estado === 'desaparecido' && (
+                    <button onClick={() => setFoundTarget(p)} style={{
+                      marginTop: '12px', padding: '10px', fontSize: '0.88rem', fontWeight: '700',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)',
+                      color: '#4ade80', borderRadius: '10px', cursor: 'pointer', width: '100%'
+                    }}>
+                      <Heart size={16} /> Lo encontré
+                    </button>
                   )}
                 </div>
-
-                {/* Found button */}
-                {p.estado === 'desaparecido' && (
-                  <button onClick={() => setFoundTarget(p)} style={{
-                    marginTop: '12px', padding: '10px', fontSize: '0.88rem', fontWeight: '700',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                    background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)',
-                    color: '#4ade80', borderRadius: '10px', cursor: 'pointer', width: '100%'
-                  }}>
-                    <Heart size={16} /> Lo encontré
-                  </button>
-                )}
               </div>
+            ))}
+          </div>
+          
+          {page < totalPages && (
+            <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+              <button onClick={handleLoadMore} disabled={loadingMore} style={{
+                padding: '12px 24px', fontSize: '0.95rem', fontWeight: '700',
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                color: 'white', borderRadius: '20px', cursor: 'pointer',
+                transition: 'all 0.2s', display: 'inline-flex', alignItems: 'center', gap: '8px'
+              }}>
+                {loadingMore ? 'Cargando...' : `Cargar más (Mostrando ${desaparecidos.length} de ${stats.total || 43000})`}
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {/* Modals */}
-      {showReport && <ReportModal onClose={() => setShowReport(false)} onSuccess={fetchAll} />}
-      {foundTarget && <FoundModal persona={foundTarget} onClose={() => setFoundTarget(null)} onSuccess={fetchAll} />}
+      {showReport && <ReportModal onClose={() => setShowReport(false)} onSuccess={() => fetchData(1, true)} />}
+      {foundTarget && <FoundModal persona={foundTarget} onClose={() => setFoundTarget(null)} onSuccess={() => fetchData(1, true)} />}
     </div>
   );
 }
