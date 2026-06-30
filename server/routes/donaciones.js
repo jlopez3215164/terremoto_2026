@@ -160,4 +160,23 @@ router.post('/public', async (req, res) => {
   }
 });
 
+// Listar donaciones públicamente (para mostrar donantes)
+router.get('/public/centro/:centroId', async (req, res) => {
+  try {
+    const { centroId } = req.params;
+    const [donaciones] = await pool.query(
+      `SELECT id, donante_nombre, tipo_ayuda, cantidad, estado, created_at 
+       FROM donaciones 
+       WHERE centro_id = ?
+       ORDER BY created_at DESC`,
+      [centroId]
+    );
+    res.json(donaciones);
+  } catch (error) {
+    console.error('Error al listar donaciones públicas:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 module.exports = router;
+

@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { fetchWithAuth, API_URL } from '../api/client';
@@ -97,13 +98,53 @@ function NeedsList({ items }) {
 
 function DonationModal({ centro, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
-    donante_nombre: '', telefono_donante: '', tipo_ayuda: 'otro', cantidad: '', nota: ''
+    donante_nombre: '', telefono_donante: '', tipo_ayuda: '', cantidad: '', nota: ''
   });
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  
+  const [needsData, setNeedsData] = useState([]);
+  const [donations, setDonations] = useState([]);
+
+  useEffect(() => {
+    const items = parseNeeds(centro.tipos_ayuda);
+    setNeedsData(items);
+    if (items.length > 0) {
+      setFormData(prev => ({ ...prev, tipo_ayuda: items[0].insumo }));
+    } else {
+      setFormData(prev => ({ ...prev, tipo_ayuda: 'otro' }));
+    }
+
+    fetch(import.meta.env.MODE === 'development' ? 'http://localhost:3001/api/donaciones/public/centro/' + centro.id : '/api/donaciones/public/centro/' + centro.id)
+      .then(res => res.json())
+      .then(data => setDonations(data))
+      .catch(console.error);
+  }, [centro]);
+
+  const getRemaining = (insumoName, requestedStr) => {
+    const requested = parseInt(requestedStr.replace(/[^0-9]/g, ''), 10) || 0;
+    if (!requested) return null; // No numeric limit
+    
+    const donated = donations
+      .filter(d => d.tipo_ayuda === insumoName)
+      .reduce((sum, d) => sum + (parseInt(d.cantidad.replace(/[^0-9]/g, ''), 10) || 0), 0);
+      
+    return Math.max(0, requested - donated);
+  };
+
+  const selectedNeed = needsData.find(n => n.insumo === formData.tipo_ayuda);
+  const remaining = selectedNeed ? getRemaining(selectedNeed.insumo, selectedNeed.cantidad) : null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (remaining !== null) {
+      const donateAmount = parseInt(formData.cantidad.replace(/[^0-9]/g, ''), 10) || 0;
+      if (donateAmount > remaining) {
+        alert('La cantidad ingresada (' + donateAmount + ') supera el máximo restante de ' + remaining + '.');
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch(`${API_URL}/donaciones/public`, {
@@ -224,18 +265,31 @@ function DonationModal({ centro, onClose, onSuccess }) {
                   <div style={{ position: 'relative', flex: 1 }}>
                     <Heart size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b', zIndex: 10 }} />
                     <div style={{ paddingLeft: '32px' }}>
-                      <CustomSelect 
+                      <select 
                         value={formData.tipo_ayuda}
                         onChange={e => setFormData({...formData, tipo_ayuda: e.target.value})}
-                        options={[
-                          { value: 'alimentos', label: '🍎 Alimentos' },
-                          { value: 'medicinas', label: '💊 Medicinas' },
-                          { value: 'ropa', label: '👕 Ropa' },
-                          { value: 'agua', label: '💧 Agua' },
-                          { value: 'materiales', label: '🧱 Materiales' },
-                          { value: 'otro', label: '📦 Otro' }
-                        ]}
-                      />
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', outline: 'none' }}
+                      >
+                        {needsData.length > 0 ? (
+                          <>
+                            {needsData.map(n => {
+                              const rem = getRemaining(n.insumo, n.cantidad);
+                              const remText = rem !== null ? ` (Faltan: ${rem})` : ` (${n.cantidad})`;
+                              return <option key={n.insumo} value={n.insumo} disabled={rem === 0}>{n.insumo}{remText}</option>;
+                            })}
+                            <option value="otro">📦 Otro insumo no listado</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="alimentos">🍎 Alimentos</option>
+                            <option value="medicinas">💊 Medicinas</option>
+                            <option value="ropa">👕 Ropa</option>
+                            <option value="agua">💧 Agua</option>
+                            <option value="materiales">🧱 Materiales</option>
+                            <option value="otro">📦 Otro</option>
+                          </>
+                        )}
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -245,11 +299,16 @@ function DonationModal({ centro, onClose, onSuccess }) {
                   </label>
                   <div style={{ position: 'relative' }}>
                     <Package size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
-                    <input type="text" className="input-field" placeholder="Ej: 10 cajas"
+                    <input type="text" className="input-field" placeholder={remaining !== null ? `Máximo: ${remaining}` : "Ej: 10 cajas"}
                       style={{ paddingLeft: '36px', width: '100%' }}
                       value={formData.cantidad}
                       onChange={e => setFormData({...formData, cantidad: e.target.value})}
                     />
+                    {remaining !== null && (
+                      <small style={{ color: '#fbbf24', fontSize: '0.7rem', position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }}>
+                        Máx: {remaining}
+                      </small>
+                    )}
                   </div>
                 </div>
               </div>
@@ -656,16 +715,68 @@ function CentroCard({ centro, onDonate, isAdmin, canManage, currentUser, onEdit,
 
       {/* Donate button */}
       <div style={{ marginTop: 'auto', padding: centro.logo_url ? '0 1rem 1rem' : '0' }}>
-        <button onClick={() => onDonate(centro)} className="btn btn-primary" style={{
-          width: '100%', padding: '10px', fontSize: '0.9rem', fontWeight: '700',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-          background: 'linear-gradient(135deg, #dc2626 0%, #ea580c 100%)',
-          border: 'none', borderRadius: '8px',
-        }}>
-          <Heart size={16} /> Quiero Donar
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={() => window.dispatchEvent(new CustomEvent('open-donors', { detail: centro.id }))} style={{
+            flex: 1, padding: '10px', fontSize: '0.85rem', fontWeight: '700',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+            color: '#cbd5e1', borderRadius: '8px', cursor: 'pointer'
+          }}>
+            <User size={14} /> Ver Donantes
+          </button>
+          <button onClick={() => onDonate(centro)} className="btn btn-primary" style={{
+            flex: 2, padding: '10px', fontSize: '0.9rem', fontWeight: '700',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+            background: 'linear-gradient(135deg, #dc2626 0%, #ea580c 100%)',
+            border: 'none', borderRadius: '8px',
+            color: 'white', cursor: 'pointer'
+          }}>
+            <Heart size={16} /> Quiero Donar
+          </button>
+        </div>
       </div>
     </div>
+  );
+}
+
+
+function DonorsModal({ centro, onClose }) {
+  const [donors, setDonors] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetch(import.meta.env.MODE === 'development' ? 'http://localhost:3001/api/donaciones/public/centro/' + centro.id : '/api/donaciones/public/centro/' + centro.id)
+      .then(res => res.json())
+      .then(data => {
+        setDonors(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, [centro.id]);
+
+  return createPortal(
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem', animation: 'fadeIn 0.2s ease-out' }} onClick={onClose}>
+      <div className="glass-panel" style={{ width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto', animation: 'slideUp 0.3s', position: 'relative' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '1.25rem', margin: 0 }}><Heart size={18} style={{ color: '#f87171', marginRight: '8px' }}/>Donantes Recientes</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}><X size={16}/></button>
+        </div>
+        {loading ? <p>Cargando donantes...</p> : donors.length === 0 ? <p>Aún no hay donantes registrados.</p> : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {donors.map(d => (
+              <div key={d.id} style={{ background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <p style={{ margin: '0 0 4px', fontWeight: 'bold' }}>{d.donante_nombre}</p>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#cbd5e1' }}>Donó: {d.cantidad} {d.tipo_ayuda}</p>
+                <small style={{ color: '#64748b' }}>{new Date(d.created_at).toLocaleDateString()}</small>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>, document.body
   );
 }
 
@@ -675,6 +786,17 @@ export default function Centros() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [donatingTo, setDonatingTo] = useState(null);
+  const [viewingDonors, setViewingDonors] = useState(null);
+  
+  useEffect(() => {
+    const handleOpenDonors = (e) => {
+      const id = e.detail;
+      const c = centros.find(x => x.id === id);
+      if (c) setViewingDonors(c);
+    };
+    window.addEventListener('open-donors', handleOpenDonors);
+    return () => window.removeEventListener('open-donors', handleOpenDonors);
+  }, [centros]);
   const [adminCentroModal, setAdminCentroModal] = useState(false);
   const [centroToEdit, setCentroToEdit] = useState(null);
   
@@ -845,6 +967,9 @@ export default function Centros() {
       </div>
 
       {/* Donation modal */}
+      {viewingDonors && (
+        <DonorsModal centro={viewingDonors} onClose={() => setViewingDonors(null)} />
+      )}
       {donatingTo && (
         <DonationModal 
           centro={donatingTo} 
