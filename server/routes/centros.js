@@ -105,4 +105,29 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// Eliminar (soft-delete) centro de donación
+router.delete('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (req.user.rol !== 'admin') {
+      return res.status(403).json({ error: 'No autorizado. Se requiere rol de admin' });
+    }
+
+    const [result] = await pool.query(
+      `UPDATE centros_donacion SET activo = false WHERE id = ?`,
+      [id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Centro no encontrado' });
+    }
+
+    res.json({ message: 'Centro eliminado correctamente' });
+  } catch (error) {
+    console.error('Error al eliminar centro:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 module.exports = router;

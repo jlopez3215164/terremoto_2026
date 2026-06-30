@@ -482,7 +482,7 @@ function AdminCentroModal({ centro, onClose, onSuccess }) {
   );
 }
 
-function CentroCard({ centro, onDonate, isAdmin, onEdit }) {
+function CentroCard({ centro, onDonate, isAdmin, onEdit, onDelete }) {
   const [expanded, setExpanded] = useState(false);
   
   const needItems = parseNeeds(centro.tipos_ayuda);
@@ -515,13 +515,22 @@ function CentroCard({ centro, onDonate, isAdmin, onEdit }) {
           </span>
         )}
         {isAdmin && (
-          <button onClick={() => onEdit(centro)} style={{
-            background: 'rgba(59, 130, 246, 0.2)', border: '1px solid rgba(59,130,246,0.3)', color: '#60a5fa',
-            borderRadius: '8px', padding: '6px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
-            fontSize: '0.8rem', fontWeight: '600'
-          }}>
-            <Edit size={14} /> Editar
-          </button>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button onClick={() => onEdit(centro)} style={{
+              background: 'rgba(59, 130, 246, 0.2)', border: '1px solid rgba(59,130,246,0.3)', color: '#60a5fa',
+              borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+              fontSize: '0.8rem', fontWeight: '600'
+            }}>
+              <Edit size={14} /> Editar
+            </button>
+            <button onClick={() => onDelete(centro.id)} style={{
+              background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171',
+              borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+              fontSize: '0.8rem', fontWeight: '600'
+            }}>
+              <Trash2 size={14} />
+            </button>
+          </div>
         )}
       </div>
 
@@ -628,6 +637,17 @@ export default function Centros() {
   useEffect(() => {
     fetchCentros();
   }, [zonaId]);
+
+  const handleDeleteCentro = async (id) => {
+    if (window.confirm('¿Estás seguro de que deseas eliminar este centro de acopio?')) {
+      try {
+        await fetchWithAuth(`/centros/${id}`, { method: 'DELETE' });
+        fetchCentros();
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+  };
 
   const filtered = centros.filter(c => {
     if (!searchTerm) return true;
@@ -748,7 +768,14 @@ export default function Centros() {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem' }}>
             {sorted.map(centro => (
-              <CentroCard key={centro.id} centro={centro} onDonate={setDonatingTo} isAdmin={isAdmin} onEdit={c => { setCentroToEdit(c); setAdminCentroModal(true); }} />
+              <CentroCard 
+                key={centro.id} 
+                centro={centro} 
+                onDonate={setDonatingTo} 
+                isAdmin={isAdmin} 
+                onEdit={c => { setCentroToEdit(c); setAdminCentroModal(true); }}
+                onDelete={handleDeleteCentro}
+              />
             ))}
           </div>
         )}
