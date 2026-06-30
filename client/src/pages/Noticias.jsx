@@ -34,7 +34,8 @@ export default function Noticias() {
       await fetchWithAuth(`/noticias/${id}`, { method: 'DELETE' });
       fetchNoticias();
     } catch (error) {
-      alert('Error al eliminar la noticia');
+      console.error('Delete error:', error);
+      alert('Error al eliminar la noticia: ' + error.message);
     }
   };
 
