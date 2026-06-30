@@ -134,7 +134,7 @@ router.put('/:id/confirmar', authMiddleware, async (req, res) => {
 // Donar directamente (público, sin autenticación)
 router.post('/public', async (req, res) => {
   try {
-    const { centro_id, donante_nombre, tipo_ayuda, descripcion, cantidad, telefono_donante, nota } = req.body;
+    const { centro_id, donante_nombre, tipo_ayuda, descripcion, cantidad, telefono_donante, nota, insumos } = req.body;
 
     if (!centro_id || !donante_nombre) {
       return res.status(400).json({ error: 'Centro y nombre del donante son requeridos' });
@@ -143,17 +143,23 @@ router.post('/public', async (req, res) => {
     const descFull = [descripcion, nota ? `Nota: ${nota}` : '', telefono_donante ? `Tel: ${telefono_donante}` : '']
       .filter(Boolean).join(' | ');
 
-    const [result] = await pool.query(
-      `INSERT INTO donaciones 
-       (centro_id, donante_nombre, tipo_ayuda, descripcion, cantidad) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [centro_id, donante_nombre, tipo_ayuda || 'otro', descFull, cantidad || '']
-    );
-
-    res.status(201).json({
-      id: result.insertId,
-      message: 'Donación registrada exitosamente. ¡Gracias por tu ayuda!'
-    });
+    if (insumos && Array.isArray(insumos) && insumos.length > 0) {
+      // Donación múltiple
+      for (const item of insumos) {
+        await pool.query(
+          `INSERT INTO donaciones (centro_id, donante_nombre, tipo_ayuda, descripcion, cantidad) VALUES (?, ?, ?, ?, ?)`,
+          [centro_id, donante_nombre, item.tipo || 'otro', descFull, item.cantidad || '']
+        );
+      }
+      res.status(201).json({ message: 'Donaciones registradas exitosamente. ¡Gracias por tu ayuda!' });
+    } else {
+      // Donación simple (legacy)
+      const [result] = await pool.query(
+        `INSERT INTO donaciones (centro_id, donante_nombre, tipo_ayuda, descripcion, cantidad) VALUES (?, ?, ?, ?, ?)`,
+        [centro_id, donante_nombre, tipo_ayuda || 'otro', descFull, cantidad || '']
+      );
+      res.status(201).json({ id: result.insertId, message: 'Donación registrada exitosamente. ¡Gracias por tu ayuda!' });
+    }
   } catch (error) {
     console.error('Error al crear donación pública:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
